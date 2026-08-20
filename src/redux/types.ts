@@ -1,0 +1,9 @@
+export const REGISTER = 'REGISTER';
+export const TOKEN = 'TOKEN';
+export const LOGIN = 'LOGIN';
+export const LOGOUT = 'LOGOUT';
+export const SET_USER_PROFILE = 'SET_USER_PROFILE';
+export const GET_ALL_COMMUNITY = 'GET_ALL_COMMUNITY';
+export const CLEAR_USER_PROFILE = 'CLEAR_USER_PROFILE';
+export const GET_COURSES = 'GET_COURSES';
+export const GET_NOTIFICATION = 'GET_NOTIFICATION';
