@@ -52,7 +52,11 @@ const HomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
             <Text style={styles.heading}>Find a Space That Works For You</Text>
           </View>
 
-          <TouchableOpacity activeOpacity={0.8} style={styles.bellButton}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('NotificationScreen')}
+            style={styles.bellButton}
+          >
             <Image
               source={icons.notification}
               style={styles.bellIcon}

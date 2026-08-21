@@ -15,6 +15,8 @@ export const colors = {
   pending: '#CE9400', // booking status — pending
   pendingBg: '#CE94001A',
   pendingBorder: '#CE940080',
+  gold: '#E0AD29', // refer & earn — credit amount / referral code accent
+  goldBg: '#CE94001A', // referral code box background
   complete: '#00BE06', // booking status — complete
   completeBg: '#00BE061A',
   completeBorder: '#00BE0680',

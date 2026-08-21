@@ -49,7 +49,9 @@ export const icons = {
   refer: require('./ic_refer.png'),
   logout: require('./ic_logout.png'),
   deleteAccount: require('./ic_delete_account.png'),
+  deleteCircle: require('./ic_delete.png'),
   copyText: require('./ic_copy.png'),
   sendMessage: require('./ic_send_msg.png'),
   like: require('./ic_like.png'),
+  signoutRed: require('./ic_signout.png'),
 };

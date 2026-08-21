@@ -8,12 +8,19 @@ import {
 } from 'react-native';
 import type { SpaceRole } from '../navigation/TabNav';
 
+export interface SavedCard {
+  id: string;
+  brand: 'visa' | 'mastercard';
+  last4: string;
+  first4: string;
+}
+
 export type RootStackParamList = {
   SplashScreen: undefined;
   OnboardingScreen: undefined;
   LoginScreen: undefined;
   ForgotPasswordScreen: undefined;
-  ResetPasswordScreen: { email: string };
+  ResetPasswordScreen: undefined;
   FitnessInfoScreen: { startStep?: number } | undefined;
   EditProfileScreen: undefined;
   ChangePasswordScreen: undefined;
@@ -39,6 +46,10 @@ export type RootStackParamList = {
   WishlistScreen: undefined;
   MyJobApplicationsScreen: undefined;
   GetVerifiedScreen: undefined;
+  ReferEarnScreen: undefined;
+  MyCardsScreen: undefined;
+  AddNewCardScreen: { onAdd: (card: SavedCard) => void };
+  NotificationScreen: undefined;
   OrderDetailScreen: { saleId?: string } | undefined;
   TermsScreen: undefined;
   MainTabs: { userRole?: SpaceRole } | undefined;

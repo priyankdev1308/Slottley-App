@@ -16,7 +16,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import { RootStackParamList } from '../interface/common';
 import { colors } from '../utils/colors';
 
-export type SpaceRole = 'find' | 'list';
+export type SpaceRole = 'renter' | 'host';
 
 export type MainTabParamList = {
   Explore: undefined;
@@ -37,7 +37,7 @@ type TabNavProps = NativeStackScreenProps<RootStackParamList, 'MainTabs'>;
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 const TabNav = ({ route }: TabNavProps) => {
-  const userRole: SpaceRole = route.params?.userRole ?? 'find';
+  const userRole: SpaceRole = route.params?.userRole ?? 'renter';
 
   const CustomTabBar = ({ state, navigation }: BottomTabBarProps) => (
     <TabBar

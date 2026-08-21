@@ -16,10 +16,37 @@ import CustomButton from '../components/CustomButton';
 import { colors } from '../utils/colors';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp, isIos } from '../helpers/responsive';
+import { isValidEmail } from '../helpers/globalFunctions';
+import { supabase, PASSWORD_RESET_REDIRECT_URL } from '../api/supabaseClient';
+import ToastAlert from '../components/ToastAlert';
 import { ForgotPasswordScreenProps } from '../interface/screenTypes';
 
 const ForgotPasswordScreen = ({ navigation }: ForgotPasswordScreenProps) => {
   const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSendResetLink = async () => {
+    if (!isValidEmail(email)) {
+      ToastAlert({ title: 'Invalid email', description: 'Please enter a valid email address.' });
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: PASSWORD_RESET_REDIRECT_URL,
+    });
+    setLoading(false);
+
+    if (error) {
+      ToastAlert({ title: 'Could not send reset link', description: error.message });
+      return;
+    }
+
+    ToastAlert({
+      title: 'Check your email',
+      description: 'We sent you a link to reset your password.',
+    });
+  };
 
   return (
     <SafeAreaView style={styles.flex} edges={['top']}>
@@ -46,7 +73,9 @@ const ForgotPasswordScreen = ({ navigation }: ForgotPasswordScreenProps) => {
 
             <CustomButton
               title="Send Reset Link"
-              onPress={() => { }}
+              onPress={handleSendResetLink}
+              loader={loading}
+              disable={loading}
               buttonStyle={styles.button}
             />
 

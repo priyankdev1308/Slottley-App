@@ -23,6 +23,9 @@ import { icons } from '../../assets/icons';
 import { colors } from '../utils/colors';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp, isIos } from '../helpers/responsive';
+import { isValidEmail } from '../helpers/globalFunctions';
+import { supabase } from '../api/supabaseClient';
+import ToastAlert from '../components/ToastAlert';
 import { LoginScreenProps } from '../interface/screenTypes';
 import { SpaceRole } from '../navigation/TabNav';
 
@@ -30,17 +33,100 @@ type AuthTab = 'login' | 'register';
 
 const LoginScreen = ({ navigation }: LoginScreenProps) => {
   const [activeTab, setActiveTab] = useState<AuthTab>('login');
-  const [role, setRole] = useState<SpaceRole>('find');
+  const [role, setRole] = useState<SpaceRole>('renter');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [signInLoading, setSignInLoading] = useState(false);
 
   const [fullName, setFullName] = useState('');
   const [referralCode, setReferralCode] = useState('');
   const [registerEmail, setRegisterEmail] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [signUpLoading, setSignUpLoading] = useState(false);
 
   const isLogin = activeTab === 'login';
+
+  const handleSignIn = async () => {
+    if (!isValidEmail(email)) {
+      ToastAlert({ title: 'Invalid email', description: 'Please enter a valid email address.' });
+      return;
+    }
+    if (!password) {
+      ToastAlert({ title: 'Password required', description: 'Please enter your password.' });
+      return;
+    }
+
+    setSignInLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+    setSignInLoading(false);
+
+    if (error) {
+      ToastAlert({ title: 'Sign in failed', description: error.message });
+      return;
+    }
+
+    navigation.reset({ index: 0, routes: [{ name: 'MainTabs', params: { userRole: role } }] });
+  };
+
+  const handleSignUp = async () => {
+    if (!fullName.trim()) {
+      ToastAlert({ title: 'Full name required', description: 'Please enter your full name.' });
+      return;
+    }
+    if (!isValidEmail(registerEmail)) {
+      ToastAlert({ title: 'Invalid email', description: 'Please enter a valid email address.' });
+      return;
+    }
+    if (registerPassword.length < 6) {
+      ToastAlert({
+        title: 'Password too short',
+        description: 'Password must be at least 6 characters.',
+      });
+      return;
+    }
+    if (confirmPassword !== registerPassword) {
+      ToastAlert({
+        title: 'Passwords do not match',
+        description: 'Please make sure both passwords are the same.',
+      });
+      return;
+    }
+
+    setSignUpLoading(true);
+    const { data, error } = await supabase.auth.signUp({
+      email: registerEmail.trim(),
+      password: registerPassword,
+      options: {
+        data: {
+          full_name: fullName.trim(),
+          referral_code: referralCode.trim() || null,
+          role,
+        },
+      },
+    });
+    setSignUpLoading(false);
+
+    if (error) {
+      ToastAlert({ title: 'Registration failed', description: error.message });
+      return;
+    }
+
+    if (!data.session) {
+      ToastAlert({
+        title: 'Confirm your email',
+        description: 'We sent you a confirmation link. Please verify your email, then sign in.',
+      });
+      setActiveTab('login');
+      return;
+    }
+
+    navigation.reset({ index: 0, routes: [{ name: 'MainTabs', params: { userRole: role } }] });
+  };
 
   return (
     <SafeAreaView style={styles.flex} edges={['top']}>
@@ -92,7 +178,9 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
 
                   <CustomButton
                     title="Sign In"
-                    onPress={() => navigation.navigate('MainTabs', { userRole: role })}
+                    onPress={handleSignIn}
+                    loader={signInLoading}
+                    disable={signInLoading}
                   />
                 </>
               ) : (
@@ -106,14 +194,14 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                           source={icons.findSpace}
                           style={[
                             styles.optionIcon,
-                            { tintColor: role === 'find' ? colors.white : colors.darkGray },
+                            { tintColor: role === 'renter' ? colors.white : colors.darkGray },
                           ]}
                           resizeMode="contain"
                         />
                       }
                       title="Find Space"
-                      selected={role === 'find'}
-                      onPress={() => setRole('find')}
+                      selected={role === 'renter'}
+                      onPress={() => setRole('renter')}
                     />
                     <RegisterOptionCard
                       icon={
@@ -121,14 +209,14 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                           source={icons.store}
                           style={[
                             styles.optionIcon,
-                            { tintColor: role === 'list' ? colors.white : colors.darkGray },
+                            { tintColor: role === 'host' ? colors.white : colors.darkGray },
                           ]}
                           resizeMode="contain"
                         />
                       }
                       title="List Space"
-                      selected={role === 'list'}
-                      onPress={() => setRole('list')}
+                      selected={role === 'host'}
+                      onPress={() => setRole('host')}
                     />
                   </View>
 
@@ -160,10 +248,19 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                     onChangeText={setRegisterPassword}
                     secureTextEntry
                   />
+                  <CustomTextInput
+                    label="Confirm Password"
+                    placeholder="Re-enter your password"
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry
+                  />
 
                   <CustomButton
                     title="Create Account"
-                    onPress={() => navigation.navigate('MainTabs', { userRole: role })}
+                    onPress={handleSignUp}
+                    loader={signUpLoading}
+                    disable={signUpLoading}
                   />
                 </>
               )}

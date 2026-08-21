@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -8,15 +8,29 @@ import {
   ScrollView,
   TouchableOpacity,
   ImageSourcePropType,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { icons } from '../../assets/icons';
+import ConfirmModal from '../components/ConfirmModal';
+import ToastAlert from '../components/ToastAlert';
 import { colors } from '../utils/colors';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp } from '../helpers/responsive';
-import { MainTabScreenProps } from '../navigation/TabNav';
+import { supabase } from '../api/supabaseClient';
+import { MainTabScreenProps, SpaceRole } from '../navigation/TabNav';
+
+const ROLE_LABELS: Record<SpaceRole, string> = {
+  renter: 'Renter',
+  host: 'Host',
+};
+
+interface UserProfile {
+  full_name: string | null;
+  email: string | null;
+  role: SpaceRole | null;
+}
 
 interface ProfileOption {
   key: string;
@@ -34,11 +48,41 @@ const OPTIONS: ProfileOption[] = [
   { key: 'cards', icon: icons.cards, title: "My Card's" },
   { key: 'verified', icon: icons.verified, title: 'Get verified' },
   { key: 'refer', icon: icons.refer, title: 'Refer & earn £10', rightLabel: '#SPA1258' },
-  { key: 'logout', icon: icons.logout, title: 'Log out', danger: true },
+  { key: 'logout', icon: icons.signoutRed, title: 'Log out', danger: true },
   { key: 'delete', icon: icons.deleteAccount, title: 'Delete Account', danger: true },
 ];
 
 const ProfileScreen = ({ navigation }: MainTabScreenProps<'Profile'>) => {
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+
+      (async () => {
+        const { data: authData } = await supabase.auth.getUser();
+        if (!authData.user) return;
+
+        const { data, error } = await supabase
+          .from('users')
+          .select('full_name, email, role')
+          .eq('id', authData.user.id)
+          .single();
+
+        if (!cancelled && !error && data) {
+          setProfile(data);
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
+
   const handlePress = (key: string) => {
     if (key === 'edit') {
       navigation.navigate('EditProfileScreen');
@@ -48,28 +92,37 @@ const ProfileScreen = ({ navigation }: MainTabScreenProps<'Profile'>) => {
       navigation.navigate('WishlistScreen');
     } else if (key === 'jobs') {
       navigation.navigate('MyJobApplicationsScreen');
+    } else if (key === 'cards') {
+      navigation.navigate('MyCardsScreen');
     } else if (key === 'verified') {
       navigation.navigate('GetVerifiedScreen');
+    } else if (key === 'refer') {
+      navigation.navigate('ReferEarnScreen');
     } else if (key === 'logout') {
-      Alert.alert('Log out', 'Are you sure you want to log out of your account?', [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Log out',
-          style: 'destructive',
-          onPress: () =>
-            navigation.getParent()?.reset({ index: 0, routes: [{ name: 'LoginScreen' }] }),
-        },
-      ]);
+      setLogoutModalVisible(true);
     } else if (key === 'delete') {
-      Alert.alert(
-        'Delete Account',
-        'This will permanently delete your account and all your data. This action cannot be undone.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Delete', style: 'destructive', onPress: () => { } },
-        ],
-      );
+      setDeleteModalVisible(true);
     }
+  };
+
+  const handleLogout = async () => {
+    setLogoutModalVisible(false);
+    await supabase.auth.signOut();
+    navigation.getParent()?.reset({ index: 0, routes: [{ name: 'LoginScreen' }] });
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleteLoading(true);
+    const { error } = await supabase.functions.invoke('delete-account');
+    setDeleteLoading(false);
+    setDeleteModalVisible(false);
+
+    if (error) {
+      ToastAlert({ title: 'Could not delete account', description: error.message });
+      return;
+    }
+
+    navigation.getParent()?.reset({ index: 0, routes: [{ name: 'LoginScreen' }] });
   };
 
   return (
@@ -94,11 +147,13 @@ const ProfileScreen = ({ navigation }: MainTabScreenProps<'Profile'>) => {
             />
           </View>
           <View style={styles.profileTextCol}>
-            <Text style={styles.name}>kenzi lawson</Text>
-            <Text style={styles.email}>kenzi.lawson@example.com</Text>
+            <Text style={styles.name}>{profile?.full_name || '—'}</Text>
+            <Text style={styles.email}>{profile?.email || '—'}</Text>
           </View>
           <View style={styles.roleBadge}>
-            <Text style={styles.roleBadgeText}>Renter</Text>
+            <Text style={styles.roleBadgeText}>
+              {profile?.role ? ROLE_LABELS[profile.role] : '—'}
+            </Text>
           </View>
         </View>
 
@@ -111,7 +166,10 @@ const ProfileScreen = ({ navigation }: MainTabScreenProps<'Profile'>) => {
           >
             <Image
               source={option.icon}
-              style={[styles.optionIcon, option.danger && { tintColor: colors.red }]}
+              style={[
+                styles.optionIcon,
+                option.danger && option.key !== 'logout' && { tintColor: colors.red },
+              ]}
               resizeMode="contain"
             />
             <Text
@@ -133,6 +191,31 @@ const ProfileScreen = ({ navigation }: MainTabScreenProps<'Profile'>) => {
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      <ConfirmModal
+        visible={logoutModalVisible}
+        onClose={() => setLogoutModalVisible(false)}
+        onConfirm={handleLogout}
+        icon={<Image source={icons.logout} style={styles.confirmIcon} resizeMode="contain" />}
+        iconBg="transparent"
+        title="Are You Sure ?"
+        description="You will be logged out from your account. You can log in again anytime."
+        cancelText="No"
+        confirmText="Yes, Log Out"
+      />
+
+      <ConfirmModal
+        visible={deleteModalVisible}
+        onClose={() => setDeleteModalVisible(false)}
+        onConfirm={handleDeleteAccount}
+        icon={<Image source={icons.deleteCircle} style={styles.confirmIcon} resizeMode="contain" />}
+        iconBg="transparent"
+        title="Are You Sure ?"
+        description="This action cannot be undone. Your account will be permanently deleted."
+        cancelText="Cancel"
+        confirmText="Yes, Delete"
+        confirmLoading={deleteLoading}
+      />
     </SafeAreaView>
   );
 };
@@ -140,6 +223,10 @@ const ProfileScreen = ({ navigation }: MainTabScreenProps<'Profile'>) => {
 export default ProfileScreen;
 
 const styles = StyleSheet.create({
+  confirmIcon: {
+    width: wp(80),
+    height: wp(80),
+  },
   flex: {
     flex: 1,
     backgroundColor: colors.screenBgColor,

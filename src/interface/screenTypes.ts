@@ -22,6 +22,11 @@ export type ForgotPasswordScreenProps = NativeStackScreenProps<
   'ForgotPasswordScreen'
 >;
 
+export type ResetPasswordScreenProps = NativeStackScreenProps<
+  RootStackParamList,
+  'ResetPasswordScreen'
+>;
+
 export type FilterScreenProps = NativeStackScreenProps<
   RootStackParamList,
   'FilterScreen'
@@ -90,5 +95,25 @@ export type MyJobApplicationsScreenProps = NativeStackScreenProps<
 export type GetVerifiedScreenProps = NativeStackScreenProps<
   RootStackParamList,
   'GetVerifiedScreen'
+>;
+
+export type ReferEarnScreenProps = NativeStackScreenProps<
+  RootStackParamList,
+  'ReferEarnScreen'
+>;
+
+export type MyCardsScreenProps = NativeStackScreenProps<
+  RootStackParamList,
+  'MyCardsScreen'
+>;
+
+export type AddNewCardScreenProps = NativeStackScreenProps<
+  RootStackParamList,
+  'AddNewCardScreen'
+>;
+
+export type NotificationScreenProps = NativeStackScreenProps<
+  RootStackParamList,
+  'NotificationScreen'
 >;
 

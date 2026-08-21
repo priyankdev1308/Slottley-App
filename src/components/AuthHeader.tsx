@@ -50,7 +50,6 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: fontSize(28),
     fontFamily: fonts.CormorantGaramondBold,
-    fontWeight: '700'
   },
   heading: {
     marginTop: hp(10),

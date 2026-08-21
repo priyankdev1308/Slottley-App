@@ -28,12 +28,12 @@ interface TabItem {
 const getTabs = (userRole: SpaceRole): TabItem[] => [
   {
     key: 'Explore',
-    label: userRole === 'list' ? 'Home' : 'Explore',
+    label: userRole === 'host' ? 'Home' : 'Explore',
     icon: icons.tabExplore,
   },
   {
     key: 'Job',
-    label: userRole === 'list' ? 'My Job' : 'Job',
+    label: userRole === 'host' ? 'My Job' : 'Job',
     icon: icons.tabJob,
   },
   { key: 'Booking', label: 'Booking', icon: icons.tabBooking },
@@ -47,7 +47,7 @@ interface TabBarProps {
   onTabPress?: (tab: TabKey) => void;
 }
 
-const TabBar = ({ active, userRole = 'find', onTabPress }: TabBarProps) => {
+const TabBar = ({ active, userRole = 'renter', onTabPress }: TabBarProps) => {
   const insets = useSafeAreaInsets();
   const tabs = getTabs(userRole);
 

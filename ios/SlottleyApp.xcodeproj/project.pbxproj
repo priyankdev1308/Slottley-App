@@ -14,29 +14,31 @@
 		1F7D792219524C5E960CDEFA /* Lato-BoldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 53FF3E3161274FBDAD5C3D5A /* Lato-BoldItalic.ttf */; };
 		3979016BA462419780D5F16A /* Lato-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 0C07BF156CE34994A462D1BB /* Lato-Bold.ttf */; };
 		3DFECD68959A4EECB4B733E8 /* Lato-ThinItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 635832C2B040447B9008EAA8 /* Lato-ThinItalic.ttf */; };
+		530B739F381D4BDF97997293 /* Lato-MediumItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 0C42E78339F74DB999D79A0A /* Lato-MediumItalic.ttf */; };
 		598F8BC139BF474ABA0E0D17 /* Lato-Thin.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 8446654A7D6E4C6284FD528A /* Lato-Thin.ttf */; };
+		5B43A103D9D2442EB9585750 /* Lato-Semibold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = E75EBA95F9D44296AA23200A /* Lato-Semibold.ttf */; };
 		5C79AF1760A14996AD75B3B8 /* CormorantGaramond-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 327D6A31047745518F894E40 /* CormorantGaramond-Bold.ttf */; };
 		60DF256333C04B8FA31727AD /* Lato-BlackItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = C287FAA597E043DDA982D4FD /* Lato-BlackItalic.ttf */; };
 		702093485FF14F8EAF94FE6A /* Lato-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1A5113D36E0444428A435932 /* Lato-Regular.ttf */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
+		B11040AA468B4566B5609BBF /* Lato-SemiboldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 20F9FBAF761F4C6D9ED4424B /* Lato-SemiboldItalic.ttf */; };
 		B358228E5C574D4CBD92B54E /* Lato-Light.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FF2B4B723E7B4DA8A2A12880 /* Lato-Light.ttf */; };
 		B6879263A1334E9AAB1D6128 /* Lato-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9736FE1132BB427E95199E22 /* Lato-Italic.ttf */; };
 		C6D91AC7B535338032B90BD6 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
-		B11040AA468B4566B5609BBF /* Lato-SemiboldItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 20F9FBAF761F4C6D9ED4424B /* Lato-SemiboldItalic.ttf */; };
-		5B43A103D9D2442EB9585750 /* Lato-Semibold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = E75EBA95F9D44296AA23200A /* Lato-Semibold.ttf */; };
-		530B739F381D4BDF97997293 /* Lato-MediumItalic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 0C42E78339F74DB999D79A0A /* Lato-MediumItalic.ttf */; };
 		CDAC374783CE49B79B001831 /* Lato-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = F60C1E37370A44EA9F0E96B0 /* Lato-Medium.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		0C07BF156CE34994A462D1BB /* Lato-Bold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Lato-Bold.ttf"; path = "../assets/fonts/Lato-Bold.ttf"; sourceTree = "<group>"; };
+		0C42E78339F74DB999D79A0A /* Lato-MediumItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Lato-MediumItalic.ttf"; path = "../assets/fonts/Lato-MediumItalic.ttf"; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* SlottleyApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SlottleyApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = SlottleyApp/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = SlottleyApp/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = SlottleyApp/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		1A5113D36E0444428A435932 /* Lato-Regular.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Lato-Regular.ttf"; path = "../assets/fonts/Lato-Regular.ttf"; sourceTree = "<group>"; };
-		327D6A31047745518F894E40 /* CormorantGaramond-Bold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "CormorantGaramond-Bold.ttf"; path = "../assets/fonts/CormorantGaramond-Bold.ttf"; sourceTree = "<group>"; };
+		20F9FBAF761F4C6D9ED4424B /* Lato-SemiboldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Lato-SemiboldItalic.ttf"; path = "../assets/fonts/Lato-SemiboldItalic.ttf"; sourceTree = "<group>"; };
+		327D6A31047745518F894E40 /* CormorantGaramond-Bold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "CormorantGaramond-Bold.ttf"; path = "../assets/fonts/CormorantGaramond-Bold.ttf"; sourceTree = "<group>"; };
 		37D4CAD86F9B4BF08A5203F3 /* Lato-LightItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Lato-LightItalic.ttf"; path = "../assets/fonts/Lato-LightItalic.ttf"; sourceTree = "<group>"; };
 		3B4392A12AC88292D35C810B /* Pods-SlottleyApp.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SlottleyApp.debug.xcconfig"; path = "Target Support Files/Pods-SlottleyApp/Pods-SlottleyApp.debug.xcconfig"; sourceTree = "<group>"; };
 		53FF3E3161274FBDAD5C3D5A /* Lato-BoldItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Lato-BoldItalic.ttf"; path = "../assets/fonts/Lato-BoldItalic.ttf"; sourceTree = "<group>"; };
@@ -49,12 +51,10 @@
 		8446654A7D6E4C6284FD528A /* Lato-Thin.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Lato-Thin.ttf"; path = "../assets/fonts/Lato-Thin.ttf"; sourceTree = "<group>"; };
 		9736FE1132BB427E95199E22 /* Lato-Italic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Lato-Italic.ttf"; path = "../assets/fonts/Lato-Italic.ttf"; sourceTree = "<group>"; };
 		C287FAA597E043DDA982D4FD /* Lato-BlackItalic.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Lato-BlackItalic.ttf"; path = "../assets/fonts/Lato-BlackItalic.ttf"; sourceTree = "<group>"; };
+		E75EBA95F9D44296AA23200A /* Lato-Semibold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Lato-Semibold.ttf"; path = "../assets/fonts/Lato-Semibold.ttf"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		F60C1E37370A44EA9F0E96B0 /* Lato-Medium.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Lato-Medium.ttf"; path = "../assets/fonts/Lato-Medium.ttf"; sourceTree = "<group>"; };
 		FF2B4B723E7B4DA8A2A12880 /* Lato-Light.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Lato-Light.ttf"; path = "../assets/fonts/Lato-Light.ttf"; sourceTree = "<group>"; };
-		20F9FBAF761F4C6D9ED4424B /* Lato-SemiboldItalic.ttf */ = {isa = PBXFileReference; name = "Lato-SemiboldItalic.ttf"; path = "../assets/fonts/Lato-SemiboldItalic.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		E75EBA95F9D44296AA23200A /* Lato-Semibold.ttf */ = {isa = PBXFileReference; name = "Lato-Semibold.ttf"; path = "../assets/fonts/Lato-Semibold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		0C42E78339F74DB999D79A0A /* Lato-MediumItalic.ttf */ = {isa = PBXFileReference; name = "Lato-MediumItalic.ttf"; path = "../assets/fonts/Lato-MediumItalic.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		F60C1E37370A44EA9F0E96B0 /* Lato-Medium.ttf */ = {isa = PBXFileReference; name = "Lato-Medium.ttf"; path = "../assets/fonts/Lato-Medium.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -259,9 +259,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-SlottleyApp/Pods-SlottleyApp-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-SlottleyApp/Pods-SlottleyApp-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -298,9 +302,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-SlottleyApp/Pods-SlottleyApp-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-SlottleyApp/Pods-SlottleyApp-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -326,10 +334,15 @@
 			baseConfigurationReference = 3B4392A12AC88292D35C810B /* Pods-SlottleyApp.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = W6ZV7D357P;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = SlottleyApp/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Slottley;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -343,6 +356,8 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.app.slottley;
 				PRODUCT_NAME = SlottleyApp;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = global_dev_profile;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -358,9 +373,14 @@
 			baseConfigurationReference = 5709B34CF0A7D63546082F79 /* Pods-SlottleyApp.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Manual;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = W6ZV7D357P;
 				INFOPLIST_FILE = SlottleyApp/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Slottley;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -374,6 +394,8 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.app.slottley;
 				PRODUCT_NAME = SlottleyApp;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = global_dev_profile;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
