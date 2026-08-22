@@ -93,7 +93,15 @@ const JobApplyScreen = ({ navigation }: JobApplyScreenProps) => {
       </ScrollView>
 
       <View style={styles.footer}>
-        <CustomButton title="Send Application" onPress={() => navigation.goBack()} />
+        <CustomButton
+          title="Send Application"
+          onPress={() =>
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'MainTabs', params: { initialTab: 'Job' } }],
+            })
+          }
+        />
       </View>
     </SafeAreaView>
   );
@@ -120,8 +128,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   backIcon: {
-    width: wp(22),
-    height: wp(22),
+    width: wp(32),
+    height: wp(32),
     tintColor: colors.primary,
   },
   headerTitle: {

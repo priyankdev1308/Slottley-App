@@ -15,6 +15,8 @@ import MapView, { Circle } from 'react-native-maps';
 
 import CustomButton from '../components/CustomButton';
 import ReadMoreText from '../components/ReadMoreText';
+import AddReviewModal from '../components/AddReviewModal';
+import ToastAlert from '../components/ToastAlert';
 import { icons } from '../../assets/icons';
 import { images } from '../../assets/images';
 import { colors } from '../utils/colors';
@@ -69,6 +71,14 @@ const PlaceDetailScreen = ({ navigation }: PlaceDetailScreenProps) => {
   const [liked, setLiked] = useState(false);
   const [activeImage, setActiveImage] = useState(0);
   const [bookingFor, setBookingFor] = useState('Hourly');
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+
+  const handleSubmitReview = (rating: number, text: string) => {
+    // TODO: persist to a reviews table once one exists — for now just
+    // confirm receipt so the flow is usable end-to-end.
+    setReviewModalVisible(false);
+    ToastAlert({ title: 'Review submitted', description: `Thanks for your ${rating}-star review!` });
+  };
 
   const onGalleryScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const index = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
@@ -105,7 +115,9 @@ const PlaceDetailScreen = ({ navigation }: PlaceDetailScreenProps) => {
           onMomentumScrollEnd={onGalleryScroll}
         >
           {GALLERY.map((image, index) => (
-            <Image key={index} source={image} style={styles.galleryImage} resizeMode="cover" />
+            <View key={index} style={styles.galleryPage}>
+              <Image source={image} style={styles.galleryImage} resizeMode="cover" />
+            </View>
           ))}
         </ScrollView>
         <View style={styles.dotsRow}>
@@ -282,7 +294,11 @@ const PlaceDetailScreen = ({ navigation }: PlaceDetailScreenProps) => {
             </View>
           ))}
 
-          <TouchableOpacity activeOpacity={0.85} style={styles.addReviewButton}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => setReviewModalVisible(true)}
+            style={styles.addReviewButton}
+          >
             <Text style={styles.addReviewText}>Add Review</Text>
           </TouchableOpacity>
 
@@ -297,6 +313,12 @@ const PlaceDetailScreen = ({ navigation }: PlaceDetailScreenProps) => {
           />
         </View>
       </ScrollView>
+
+      <AddReviewModal
+        visible={reviewModalVisible}
+        onClose={() => setReviewModalVisible(false)}
+        onSubmit={handleSubmitReview}
+      />
     </SafeAreaView>
   );
 };
@@ -322,8 +344,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   backIcon: {
-    width: wp(22),
-    height: wp(22),
+    width: wp(32),
+    height: wp(32),
     tintColor: colors.primary,
   },
   headerTitle: {
@@ -336,9 +358,14 @@ const styles = StyleSheet.create({
     width: wp(36),
     height: wp(36),
   },
-  galleryImage: {
+  galleryPage: {
     width: screenWidth,
+    paddingHorizontal: wp(20),
+  },
+  galleryImage: {
+    width: '100%',
     height: hp(230),
+    borderRadius: wp(14),
   },
   dotsRow: {
     flexDirection: 'row',

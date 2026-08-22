@@ -225,6 +225,7 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                     placeholder="Enter your full name"
                     value={fullName}
                     onChangeText={setFullName}
+                    maxLength={25}
                     containerStyle={styles.fieldSpacing}
                   />
                   <CustomTextInput

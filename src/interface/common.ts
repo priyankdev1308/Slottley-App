@@ -6,7 +6,7 @@ import {
   ImageSourcePropType,
   KeyboardTypeOptions,
 } from 'react-native';
-import type { SpaceRole } from '../navigation/TabNav';
+import type { SpaceRole, MainTabParamList } from '../navigation/TabNav';
 
 export interface SavedCard {
   id: string;
@@ -36,6 +36,7 @@ export type RootStackParamList = {
     | undefined;
   FilterScreen: undefined;
   PlaceDetailScreen: { spaceId?: string } | undefined;
+  SpaceListScreen: { listType: 'nearYou' | 'featured' };
   BookPlaceScreen: { mode: 'single' | 'weekly'; spaceId?: string };
   RentAgreementScreen: undefined;
   PaymentScreen: undefined;
@@ -52,7 +53,9 @@ export type RootStackParamList = {
   NotificationScreen: undefined;
   OrderDetailScreen: { saleId?: string } | undefined;
   TermsScreen: undefined;
-  MainTabs: { userRole?: SpaceRole } | undefined;
+  MainTabs:
+    | { userRole?: SpaceRole; initialTab?: keyof MainTabParamList }
+    | undefined;
   BreakfastDetailScreen:
     | { mealType?: string; date?: string }
     | undefined;

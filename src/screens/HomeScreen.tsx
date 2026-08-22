@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -10,30 +10,37 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import SpaceCard, { SpaceCardData } from '../components/SpaceCard';
+import SpaceCard from '../components/SpaceCard';
+import CqcInfoModal from '../components/CqcInfoModal';
 import { icons } from '../../assets/icons';
-import { images } from '../../assets/images';
 import { colors } from '../utils/colors';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp } from '../helpers/responsive';
+import { supabase } from '../api/supabaseClient';
 import { MainTabScreenProps } from '../navigation/TabNav';
+import { NEAR_YOU, FEATURED } from '../utils/spacesMockData';
 
-// Mock data standing in for the "Space Near You" / "Featured spaces" API
-// responses — real listings will bring their own photo per item.
-const NEAR_YOU: SpaceCardData[] = [
-  { id: 'n1', title: 'Premium Nail Desk', location: 'Manchester — Didsbury', price: '£105', period: 'month', image: images.dummy1 },
-  { id: 'n2', title: 'Luxury Beauty Room', location: 'Nottingham — Wollaton', price: '£15', period: 'hour', image: images.dummy2 },
-  { id: 'n3', title: 'Modern Barbershop', location: 'London — Shoreditch', price: '£65', period: 'week', image: images.dummy3 },
-];
-
-const FEATURED: SpaceCardData[] = [
-  { id: 'f1', title: 'Clinic Place', location: 'London — Shoreditch', price: '£55', period: 'week', image: images.dummy2 },
-  { id: 'f2', title: 'Premium Hair Spa', location: 'Manchester — Didsbury', price: '£105', period: 'month', image: images.dummy3 },
-  { id: 'f3', title: 'Modern Salon', location: 'Nottingham — Wollaton', price: '£25', period: 'hour', image: images.dummy1 },
-];
+const CQC_INFO_SEEN_KEY_PREFIX = 'cqc_info_seen_';
 
 const HomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
+  const [cqcModalVisible, setCqcModalVisible] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) return;
+
+      const seenKey = `${CQC_INFO_SEEN_KEY_PREFIX}${data.user.id}`;
+      const alreadySeen = await AsyncStorage.getItem(seenKey);
+      if (!alreadySeen) {
+        setCqcModalVisible(true);
+        await AsyncStorage.setItem(seenKey, 'true');
+      }
+    })();
+  }, []);
+
   return (
     <View style={styles.flex}>
       <StatusBar barStyle="light-content" />
@@ -92,7 +99,10 @@ const HomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
       >
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Space Near You</Text>
-          <TouchableOpacity activeOpacity={0.8}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('SpaceListScreen', { listType: 'nearYou' })}
+          >
             <Text style={styles.viewAll}>View All</Text>
           </TouchableOpacity>
         </View>
@@ -112,7 +122,10 @@ const HomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Featured spaces</Text>
-          <TouchableOpacity activeOpacity={0.8}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('SpaceListScreen', { listType: 'featured' })}
+          >
             <Text style={styles.viewAll}>View All</Text>
           </TouchableOpacity>
         </View>
@@ -130,6 +143,8 @@ const HomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
           ))}
         </ScrollView>
       </ScrollView>
+
+      <CqcInfoModal visible={cqcModalVisible} onClose={() => setCqcModalVisible(false)} />
     </View>
   );
 };
@@ -171,9 +186,9 @@ const styles = StyleSheet.create({
     marginLeft: wp(12),
   },
   greeting: {
-    color: colors.white50,
-    fontSize: fontSize(13),
-    fontFamily: fonts.Lato400,
+    color: '#CDCDCD',
+    fontSize: fontSize(12),
+    fontFamily: fonts.Lato600,
   },
   heading: {
     marginTop: hp(4),

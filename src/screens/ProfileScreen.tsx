@@ -7,6 +7,7 @@ import {
   StatusBar,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
   ImageSourcePropType,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -54,6 +55,7 @@ const OPTIONS: ProfileOption[] = [
 
 const ProfileScreen = ({ navigation }: MainTabScreenProps<'Profile'>) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -61,10 +63,14 @@ const ProfileScreen = ({ navigation }: MainTabScreenProps<'Profile'>) => {
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
+      setProfileLoading(true);
 
       (async () => {
         const { data: authData } = await supabase.auth.getUser();
-        if (!authData.user) return;
+        if (!authData.user) {
+          if (!cancelled) setProfileLoading(false);
+          return;
+        }
 
         const { data, error } = await supabase
           .from('users')
@@ -72,8 +78,11 @@ const ProfileScreen = ({ navigation }: MainTabScreenProps<'Profile'>) => {
           .eq('id', authData.user.id)
           .single();
 
-        if (!cancelled && !error && data) {
-          setProfile(data);
+        if (!cancelled) {
+          if (!error && data) {
+            setProfile(data);
+          }
+          setProfileLoading(false);
         }
       })();
 
@@ -146,15 +155,26 @@ const ProfileScreen = ({ navigation }: MainTabScreenProps<'Profile'>) => {
               resizeMode="contain"
             />
           </View>
-          <View style={styles.profileTextCol}>
-            <Text style={styles.name}>{profile?.full_name || '—'}</Text>
-            <Text style={styles.email}>{profile?.email || '—'}</Text>
-          </View>
-          <View style={styles.roleBadge}>
-            <Text style={styles.roleBadgeText}>
-              {profile?.role ? ROLE_LABELS[profile.role] : '—'}
-            </Text>
-          </View>
+          {profileLoading ? (
+            <View style={styles.profileTextCol}>
+              <View style={styles.loadingRow}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={styles.loadingText}>Loading details...</Text>
+              </View>
+            </View>
+          ) : (
+            <>
+              <View style={styles.profileTextCol}>
+                <Text style={styles.name}>{profile?.full_name || '—'}</Text>
+                <Text style={styles.email}>{profile?.email || '—'}</Text>
+              </View>
+              <View style={styles.roleBadge}>
+                <Text style={styles.roleBadgeText}>
+                  {profile?.role ? ROLE_LABELS[profile.role] : '—'}
+                </Text>
+              </View>
+            </>
+          )}
         </View>
 
         {OPTIONS.map(option => (
@@ -282,6 +302,16 @@ const styles = StyleSheet.create({
   },
   email: {
     marginTop: hp(3),
+    color: colors.primary,
+    fontSize: fontSize(14),
+    fontFamily: fonts.Lato500,
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: wp(8),
+  },
+  loadingText: {
     color: colors.primary,
     fontSize: fontSize(14),
     fontFamily: fonts.Lato500,

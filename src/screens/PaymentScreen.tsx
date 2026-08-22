@@ -18,6 +18,7 @@ import { colors } from '../utils/colors';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp } from '../helpers/responsive';
 import { PaymentScreenProps } from '../interface/screenTypes';
+import { SavedCard } from '../interface/common';
 
 // Mock booking summary — will come from the booking/payment API.
 const BOOKING = {
@@ -37,13 +38,30 @@ const SUMMARY = [
 
 const GRAND_TOTAL = '£113';
 
-const CARDS = [
-  { id: 'c1', brand: 'mastercard' as const, number: '1235 XXXX XXXX 7896' },
-  { id: 'c2', brand: 'visa' as const, number: '1235 XXXX XXXX 7896' },
+interface PaymentCard {
+  id: string;
+  brand: 'mastercard' | 'visa';
+  number: string;
+}
+
+const INITIAL_CARDS: PaymentCard[] = [
+  { id: 'c1', brand: 'mastercard', number: '1235 XXXX XXXX 7896' },
+  { id: 'c2', brand: 'visa', number: '1235 XXXX XXXX 7896' },
 ];
 
 const PaymentScreen = ({ navigation }: PaymentScreenProps) => {
-  const [selectedCard, setSelectedCard] = useState(CARDS[0].id);
+  const [cards, setCards] = useState<PaymentCard[]>(INITIAL_CARDS);
+  const [selectedCard, setSelectedCard] = useState(INITIAL_CARDS[0].id);
+
+  const handleAddCard = (card: SavedCard) => {
+    const newCard: PaymentCard = {
+      id: card.id,
+      brand: card.brand,
+      number: `${card.first4} XXXX XXXX ${card.last4}`,
+    };
+    setCards(prev => [...prev, newCard]);
+    setSelectedCard(newCard.id);
+  };
 
   return (
     <SafeAreaView style={styles.flex} edges={['top']}>
@@ -110,7 +128,7 @@ const PaymentScreen = ({ navigation }: PaymentScreenProps) => {
         </View>
 
         <Text style={styles.sectionLabel}>Select Payment Method</Text>
-        {CARDS.map(card => {
+        {cards.map(card => {
           const isSelected = selectedCard === card.id;
           return (
             <TouchableOpacity
@@ -128,7 +146,11 @@ const PaymentScreen = ({ navigation }: PaymentScreenProps) => {
           );
         })}
 
-        <TouchableOpacity activeOpacity={0.8} style={styles.addCardButton}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={styles.addCardButton}
+          onPress={() => navigation.navigate('AddNewCardScreen', { onAdd: handleAddCard })}
+        >
           <Image
             source={icons.add}
             style={[styles.addIcon, { tintColor: colors.primary }]}
@@ -169,8 +191,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   backIcon: {
-    width: wp(22),
-    height: wp(22),
+    width: wp(32),
+    height: wp(32),
     tintColor: colors.primary,
   },
   headerTitle: {

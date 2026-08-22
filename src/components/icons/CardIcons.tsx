@@ -45,3 +45,30 @@ export const CloseIcon = ({ size = 16, color = '#153529' }: IconProps) => (
     <Line x1="19" y1="5" x2="5" y2="19" stroke={color} strokeWidth={2} strokeLinecap="round" />
   </Svg>
 );
+
+export const EyeIcon = ({ size = 20, color = '#8A8A8E' }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"
+      stroke={color}
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Circle cx="12" cy="12" r="3" stroke={color} strokeWidth={1.8} />
+  </Svg>
+);
+
+export const EyeOffIcon = ({ size = 20, color = '#8A8A8E' }: IconProps) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"
+      stroke={color}
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Circle cx="12" cy="12" r="3" stroke={color} strokeWidth={1.8} />
+    <Line x1="3" y1="21" x2="21" y2="3" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+  </Svg>
+);

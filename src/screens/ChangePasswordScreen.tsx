@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import CustomButton from '../components/CustomButton';
+import { EyeIcon, EyeOffIcon } from '../components/icons/CardIcons';
 import { icons } from '../../assets/icons';
 import { colors } from '../utils/colors';
 import { fonts } from '../utils/fonts';
@@ -23,6 +24,9 @@ const ChangePasswordScreen = ({ navigation }: ChangePasswordScreenProps) => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleChangePassword = () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
@@ -59,34 +63,58 @@ const ChangePasswordScreen = ({ navigation }: ChangePasswordScreenProps) => {
         keyboardShouldPersistTaps="handled"
       >
         <Text style={styles.sectionLabel}>Current Password</Text>
-        <TextInput
-          value={currentPassword}
-          onChangeText={setCurrentPassword}
-          placeholder="Enter current password"
-          placeholderTextColor={colors.placeHolder}
-          secureTextEntry
-          style={styles.input}
-        />
+        <View style={styles.inputRow}>
+          <TextInput
+            value={currentPassword}
+            onChangeText={setCurrentPassword}
+            placeholder="Enter current password"
+            placeholderTextColor={colors.placeHolder}
+            secureTextEntry={!showCurrentPassword}
+            style={styles.inputField}
+          />
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => setShowCurrentPassword(v => !v)}
+          >
+            {showCurrentPassword ? <EyeIcon /> : <EyeOffIcon />}
+          </TouchableOpacity>
+        </View>
 
         <Text style={styles.sectionLabel}>New Password</Text>
-        <TextInput
-          value={newPassword}
-          onChangeText={setNewPassword}
-          placeholder="Enter new password"
-          placeholderTextColor={colors.placeHolder}
-          secureTextEntry
-          style={styles.input}
-        />
+        <View style={styles.inputRow}>
+          <TextInput
+            value={newPassword}
+            onChangeText={setNewPassword}
+            placeholder="Enter new password"
+            placeholderTextColor={colors.placeHolder}
+            secureTextEntry={!showNewPassword}
+            style={styles.inputField}
+          />
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => setShowNewPassword(v => !v)}
+          >
+            {showNewPassword ? <EyeIcon /> : <EyeOffIcon />}
+          </TouchableOpacity>
+        </View>
 
         <Text style={styles.sectionLabel}>Confirm Password</Text>
-        <TextInput
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          placeholder="Re-enter new password"
-          placeholderTextColor={colors.placeHolder}
-          secureTextEntry
-          style={styles.input}
-        />
+        <View style={styles.inputRow}>
+          <TextInput
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            placeholder="Re-enter new password"
+            placeholderTextColor={colors.placeHolder}
+            secureTextEntry={!showConfirmPassword}
+            style={styles.inputField}
+          />
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => setShowConfirmPassword(v => !v)}
+          >
+            {showConfirmPassword ? <EyeIcon /> : <EyeOffIcon />}
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       <View style={styles.footer}>
@@ -117,8 +145,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   backIcon: {
-    width: wp(22),
-    height: wp(22),
+    width: wp(32),
+    height: wp(32),
     tintColor: colors.primary,
   },
   headerTitle: {
@@ -138,13 +166,18 @@ const styles = StyleSheet.create({
     fontSize: fontSize(14),
     fontFamily: fonts.Lato500,
   },
-  input: {
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     height: hp(54),
     paddingHorizontal: wp(16),
     borderRadius: wp(14),
     backgroundColor: '#364C7108',
     borderWidth: 1,
     borderColor: '#364C710F',
+  },
+  inputField: {
+    flex: 1,
     color: colors.black,
     fontSize: fontSize(14),
     fontFamily: fonts.Lato500,

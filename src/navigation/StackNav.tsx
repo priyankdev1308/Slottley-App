@@ -14,6 +14,7 @@ import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/ResetPasswordScreen';
 import FilterScreen from '../screens/FilterScreen';
 import PlaceDetailScreen from '../screens/PlaceDetailScreen';
+import SpaceListScreen from '../screens/SpaceListScreen';
 import BookPlaceScreen from '../screens/BookPlaceScreen';
 import RentAgreementScreen from '../screens/RentAgreementScreen';
 import PaymentScreen from '../screens/PaymentScreen';
@@ -118,6 +119,7 @@ const StackNav = () => {
           options={{ gestureEnabled: false }}
         />
         <Stack.Screen name="PlaceDetailScreen" component={PlaceDetailScreen} />
+        <Stack.Screen name="SpaceListScreen" component={SpaceListScreen} />
         <Stack.Screen name="BookPlaceScreen" component={BookPlaceScreen} />
         <Stack.Screen name="RentAgreementScreen" component={RentAgreementScreen} />
         <Stack.Screen name="PaymentScreen" component={PaymentScreen} />
@@ -145,6 +147,7 @@ const StackNav = () => {
           options={{
             presentation: 'transparentModal',
             animation: 'slide_from_bottom',
+            contentStyle: { backgroundColor: 'transparent' },
           }}
         />
         <Stack.Screen name="NotificationScreen" component={NotificationScreen} />

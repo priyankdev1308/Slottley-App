@@ -47,6 +47,8 @@ export const icons = {
   cards: require('./ic_cards.png'),
   verified: require('./ic_verified.png'),
   refer: require('./ic_refer.png'),
+  blankStar: require('./ic_blank_start.png'),
+  info: require('./ic_info.png'),
   logout: require('./ic_logout.png'),
   deleteAccount: require('./ic_delete_account.png'),
   deleteCircle: require('./ic_delete.png'),

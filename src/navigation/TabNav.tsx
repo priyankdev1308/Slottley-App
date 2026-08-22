@@ -38,6 +38,7 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 const TabNav = ({ route }: TabNavProps) => {
   const userRole: SpaceRole = route.params?.userRole ?? 'renter';
+  const initialTab = route.params?.initialTab ?? 'Explore';
 
   const CustomTabBar = ({ state, navigation }: BottomTabBarProps) => (
     <TabBar
@@ -49,6 +50,7 @@ const TabNav = ({ route }: TabNavProps) => {
 
   return (
     <Tab.Navigator
+      initialRouteName={initialTab}
       screenOptions={{
         headerShown: false,
         sceneStyle: { backgroundColor: colors.screenBgColor },

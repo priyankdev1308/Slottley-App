@@ -22,6 +22,8 @@ export const colors = {
   completeBorder: '#00BE0680',
   black: '#111827',
   textPlaceHolderColor: '#364C7108',
+  reviewInputBg: '#364C710A',
+  reviewInputBorder: '#364C7114',
   screenBgColor: '#FBFAF7',
   ccc: '#ccc',
   orange: '#E8512A',

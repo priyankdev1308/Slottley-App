@@ -119,8 +119,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   backIcon: {
-    width: wp(22),
-    height: wp(22),
+    width: wp(32),
+    height: wp(32),
     tintColor: colors.primary,
   },
   headerTitle: {
@@ -139,6 +139,8 @@ const styles = StyleSheet.create({
     paddingVertical: hp(30),
     borderRadius: wp(16),
     backgroundColor: colors.mintBg,
+    borderWidth: 1,
+    borderColor: '#15352933'
   },
   avatarWrap: {
     width: wp(120),

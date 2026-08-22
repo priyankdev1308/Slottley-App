@@ -37,6 +37,11 @@ export type PlaceDetailScreenProps = NativeStackScreenProps<
   'PlaceDetailScreen'
 >;
 
+export type SpaceListScreenProps = NativeStackScreenProps<
+  RootStackParamList,
+  'SpaceListScreen'
+>;
+
 export type BookPlaceScreenProps = NativeStackScreenProps<
   RootStackParamList,
   'BookPlaceScreen'

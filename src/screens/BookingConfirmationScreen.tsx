@@ -112,7 +112,6 @@ const styles = StyleSheet.create({
     lineHeight: fontSize(21),
     textAlign: 'center',
     fontFamily: fonts.Lato500,
-    fontWeight: 500
   },
   card: {
     width: '100%',

@@ -45,7 +45,7 @@ const CLAUSES = [
 ];
 
 const RentAgreementScreen = ({ navigation }: RentAgreementScreenProps) => {
-  const [accepted, setAccepted] = useState(true);
+  const [accepted, setAccepted] = useState(false);
 
   return (
     <SafeAreaView style={styles.flex} edges={['top']}>
@@ -123,8 +123,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   backIcon: {
-    width: wp(22),
-    height: wp(22),
+    width: wp(32),
+    height: wp(32),
     tintColor: colors.primary,
   },
   headerTitle: {
@@ -159,7 +159,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize(14),
     lineHeight: fontSize(19),
     fontFamily: fonts.Lato600,
-    fontWeight: 600
   },
   acceptRow: {
     flexDirection: 'row',
@@ -184,7 +183,6 @@ const styles = StyleSheet.create({
     color: colors.black,
     fontSize: fontSize(14),
     fontFamily: fonts.Lato600,
-    fontWeight: 600
   },
   footer: {
     paddingHorizontal: wp(20),
