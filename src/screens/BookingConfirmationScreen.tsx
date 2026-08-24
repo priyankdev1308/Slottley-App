@@ -15,7 +15,7 @@ const BOOKING = {
   title: 'Hair Apprentice',
   location: 'London, UK',
   bookingId: '#BK2026125898',
-  time: '10:00 - 18:00',
+  time: '10:00 AM - 18:00 PM',
   date: 'Mon, 20 Aug 2026',
   price: '£120',
   image: images.dummy2,

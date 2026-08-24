@@ -37,7 +37,7 @@ export type RootStackParamList = {
   FilterScreen: undefined;
   PlaceDetailScreen: { spaceId?: string } | undefined;
   SpaceListScreen: { listType: 'nearYou' | 'featured' };
-  BookPlaceScreen: { mode: 'single' | 'weekly'; spaceId?: string };
+  BookPlaceScreen: { mode: 'single' | 'weekly' | 'monthly'; spaceId?: string };
   RentAgreementScreen: undefined;
   PaymentScreen: undefined;
   BookingConfirmationScreen: undefined;
@@ -51,6 +51,7 @@ export type RootStackParamList = {
   MyCardsScreen: undefined;
   AddNewCardScreen: { onAdd: (card: SavedCard) => void };
   NotificationScreen: undefined;
+  AddNewPlaceScreen: undefined;
   OrderDetailScreen: { saleId?: string } | undefined;
   TermsScreen: undefined;
   MainTabs:

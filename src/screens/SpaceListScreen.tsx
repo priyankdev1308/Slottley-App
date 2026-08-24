@@ -26,6 +26,7 @@ const TITLES = {
 const SpaceListScreen = ({ navigation, route }: SpaceListScreenProps) => {
   const { listType } = route.params;
   const data = listType === 'featured' ? FEATURED : NEAR_YOU;
+  const paddedData = data.length % 2 !== 0 ? [...data, null] : data;
 
   return (
     <SafeAreaView style={styles.flex} edges={['top']}>
@@ -46,19 +47,23 @@ const SpaceListScreen = ({ navigation, route }: SpaceListScreenProps) => {
       </View>
 
       <FlatList
-        data={data}
-        keyExtractor={item => item.id}
+        data={paddedData}
+        keyExtractor={(item, index) => item?.id ?? `placeholder-${index}`}
         numColumns={2}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
         columnWrapperStyle={styles.row}
-        renderItem={({ item }) => (
-          <SpaceCard
-            data={item}
-            style={styles.card}
-            onPress={() => navigation.navigate('PlaceDetailScreen', { spaceId: item.id })}
-          />
-        )}
+        renderItem={({ item }) =>
+          item ? (
+            <SpaceCard
+              data={item}
+              style={styles.card}
+              onPress={() => navigation.navigate('PlaceDetailScreen', { spaceId: item.id })}
+            />
+          ) : (
+            <View style={styles.card} />
+          )
+        }
       />
     </SafeAreaView>
   );
@@ -85,8 +90,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   backIcon: {
-    width: wp(24),
-    height: wp(24),
+    width: wp(32),
+    height: wp(32),
     resizeMode: 'contain',
     tintColor: colors.primary,
   },

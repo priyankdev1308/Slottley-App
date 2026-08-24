@@ -59,18 +59,29 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
     }
 
     setSignInLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data: authData, error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
     });
-    setSignInLoading(false);
 
     if (error) {
+      setSignInLoading(false);
       ToastAlert({ title: 'Sign in failed', description: error.message });
       return;
     }
 
-    navigation.reset({ index: 0, routes: [{ name: 'MainTabs', params: { userRole: role } }] });
+    const { data: profile } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', authData.user.id)
+      .single();
+    setSignInLoading(false);
+
+    const signedInRole: SpaceRole = (profile?.role as SpaceRole) ?? 'renter';
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'MainTabs', params: { userRole: signedInRole } }],
+    });
   };
 
   const handleSignUp = async () => {

@@ -21,6 +21,7 @@ interface TabItem {
   key: TabKey;
   label: string;
   icon: ImageSourcePropType;
+  selectedIcon?: ImageSourcePropType;
 }
 
 // "Explore"/"Job" tab labels change based on the role picked at registration —
@@ -30,15 +31,32 @@ const getTabs = (userRole: SpaceRole): TabItem[] => [
     key: 'Explore',
     label: userRole === 'host' ? 'Home' : 'Explore',
     icon: icons.tabExplore,
+    selectedIcon: icons.tabHomeSelected,
   },
   {
     key: 'Job',
     label: userRole === 'host' ? 'My Job' : 'Job',
     icon: icons.tabJob,
+    selectedIcon: icons.tabJobSelected,
   },
-  { key: 'Booking', label: 'Booking', icon: icons.tabBooking },
-  { key: 'Chat', label: 'Chat', icon: icons.tabChat },
-  { key: 'Profile', label: 'Profile', icon: icons.tabProfile },
+  {
+    key: 'Booking',
+    label: 'Booking',
+    icon: icons.tabBooking,
+    selectedIcon: icons.tabBookingSelected,
+  },
+  {
+    key: 'Chat',
+    label: 'Chat',
+    icon: icons.tabChat,
+    selectedIcon: icons.tabChatSelected,
+  },
+  {
+    key: 'Profile',
+    label: 'Profile',
+    icon: icons.tabProfile,
+    selectedIcon: icons.tabProfileSelected,
+  },
 ];
 
 interface TabBarProps {
@@ -61,6 +79,7 @@ const TabBar = ({ active, userRole = 'renter', onTabPress }: TabBarProps) => {
       {tabs.map(tab => {
         const isActive = tab.key === active;
         const tint = isActive ? colors.primary : colors.gray5E6977;
+        const useSelectedIcon = isActive && !!tab.selectedIcon;
         return (
           <TouchableOpacity
             key={tab.key}
@@ -69,8 +88,8 @@ const TabBar = ({ active, userRole = 'renter', onTabPress }: TabBarProps) => {
             onPress={() => onTabPress?.(tab.key)}
           >
             <Image
-              source={tab.icon}
-              style={[styles.icon, { tintColor: tint }]}
+              source={useSelectedIcon ? tab.selectedIcon : tab.icon}
+              style={[styles.icon, !useSelectedIcon && { tintColor: tint }]}
               resizeMode="contain"
             />
             <Text

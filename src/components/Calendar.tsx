@@ -40,6 +40,10 @@ interface CalendarProps {
   /** When set, highlights this many consecutive open days starting at
    * selectedDate (Sundays are treated as closed and skipped). */
   rangeDays?: number;
+  /** When set, highlights every day from selectedDate to rangeEnd (inclusive) —
+   * for a manually picked start/end range, e.g. a monthly booking. Takes
+   * priority over rangeDays. */
+  rangeEnd?: Date | null;
 }
 
 const Calendar = ({
@@ -49,12 +53,13 @@ const Calendar = ({
   onSelectDate,
   markedDates = [],
   rangeDays,
+  rangeEnd,
 }: CalendarProps) => {
   const year = month.getFullYear();
   const monthIndex = month.getMonth();
   const weeks = buildMonthWeeks(year, monthIndex);
 
-  const rangeEnd = (() => {
+  const autoRangeEnd = (() => {
     if (!rangeDays) return null;
     const end = new Date(selectedDate);
     let remaining = rangeDays - 1;
@@ -66,11 +71,14 @@ const Calendar = ({
   })();
 
   const isRangeMember = (day: number) => {
-    if (!rangeDays || !rangeEnd) return false;
     const date = new Date(year, monthIndex, day);
+    if (rangeEnd) {
+      return date >= selectedDate && date <= rangeEnd;
+    }
+    if (!rangeDays || !autoRangeEnd) return false;
     if (date.getDay() === 0) return false;
     if (isSameDay(date, selectedDate)) return false;
-    return date > selectedDate && date <= rangeEnd;
+    return date > selectedDate && date <= autoRangeEnd;
   };
 
   return (
@@ -106,6 +114,8 @@ const Calendar = ({
 
             const date = new Date(year, monthIndex, day);
             const isStart = isSameDay(date, selectedDate);
+            const isEnd = !!rangeEnd && isSameDay(date, rangeEnd);
+            const isEndpoint = isStart || isEnd;
             const isMember = isRangeMember(day);
             const isMarked = markedDates.some(d => isSameDay(d, date));
 
@@ -126,12 +136,12 @@ const Calendar = ({
                   isMember && roundRight && styles.dayCellRoundRight,
                 ]}
               >
-                <View style={[styles.dayCircle, isStart && styles.dayCircleSelected]}>
-                  <Text style={[styles.dayText, isStart && styles.dayTextSelected]}>
+                <View style={[styles.dayCircle, isEndpoint && styles.dayCircleSelected]}>
+                  <Text style={[styles.dayText, isEndpoint && styles.dayTextSelected]}>
                     {day}
                   </Text>
                 </View>
-                {isMarked && !isStart && <View style={styles.markDot} />}
+                {isMarked && !isEndpoint && <View style={styles.markDot} />}
               </TouchableOpacity>
             );
           })}

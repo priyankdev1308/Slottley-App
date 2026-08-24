@@ -9,6 +9,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import TabBar, { TabKey } from '../components/TabBar';
 import HomeScreen from '../screens/HomeScreen';
+import HostHomeScreen from '../screens/HostHomeScreen';
 import JobScreen from '../screens/JobScreen';
 import BookingScreen from '../screens/BookingScreen';
 import ChatScreen from '../screens/ChatScreen';
@@ -57,7 +58,10 @@ const TabNav = ({ route }: TabNavProps) => {
       }}
       tabBar={CustomTabBar}
     >
-      <Tab.Screen name="Explore" component={HomeScreen} />
+      <Tab.Screen
+        name="Explore"
+        component={userRole === 'host' ? HostHomeScreen : HomeScreen}
+      />
       <Tab.Screen name="Job" component={JobScreen} />
       <Tab.Screen name="Booking" component={BookingScreen} />
       <Tab.Screen name="Chat" component={ChatScreen} />

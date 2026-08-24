@@ -20,7 +20,7 @@ import { EditProfileScreenProps } from '../interface/screenTypes';
 
 const EditProfileScreen = ({ navigation }: EditProfileScreenProps) => {
   const [fullName, setFullName] = useState('kenzi lawson');
-  const [email, setEmail] = useState('kenzi.lawson@example.com');
+  const [email] = useState('kenzi.lawson@example.com');
   const [location, setLocation] = useState('123 Beauty Street, Shoreditch London, E1 6AN, UK');
 
   return (
@@ -74,11 +74,11 @@ const EditProfileScreen = ({ navigation }: EditProfileScreenProps) => {
         <Text style={styles.sectionLabel}>Email</Text>
         <TextInput
           value={email}
-          onChangeText={setEmail}
+          editable={false}
           placeholder="Enter your email"
           placeholderTextColor={colors.placeHolder}
           keyboardType="email-address"
-          style={styles.input}
+          style={[styles.input, styles.inputDisabled]}
         />
 
         <Text style={styles.sectionLabel}>Location</Text>
@@ -189,6 +189,11 @@ const styles = StyleSheet.create({
     color: colors.black,
     fontSize: fontSize(14),
     fontFamily: fonts.Lato500,
+  },
+  inputDisabled: {
+    backgroundColor: colors.EBEBEB,
+    borderColor: colors.EBEBEB,
+    color: colors.subText,
   },
   footer: {
     paddingHorizontal: wp(20),

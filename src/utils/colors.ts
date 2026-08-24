@@ -7,6 +7,8 @@ export const colors = {
   primary10: '#1535291A', // brand green (10% opacity)
   primary50: '#15352980', // brand green (50% opacity)
   primary20: '#15352933', // brand green (20% opacity)
+  primary90: '#153529E5', // brand green (90% opacity) — selected option border
+  fieldBorder: '#364C710F', // unselected option/input box border
   sage: '#E1E7DF', // pale sage green — inactive pill track / selected option row fill
   mintBg: '#F3FFFA', // pale mint — profile card background
   red: '#D00010', // main red
@@ -16,6 +18,7 @@ export const colors = {
   pendingBg: '#CE94001A',
   pendingBorder: '#CE940080',
   gold: '#E0AD29', // refer & earn — credit amount / referral code accent
+  hostGold: '#DAA03A', // host dashboard — stat value accent
   goldBg: '#CE94001A', // referral code box background
   complete: '#00BE06', // booking status — complete
   completeBg: '#00BE061A',

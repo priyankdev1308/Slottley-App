@@ -72,6 +72,11 @@ export type JobApplyScreenProps = NativeStackScreenProps<
   'JobApplyScreen'
 >;
 
+export type AddNewPlaceScreenProps = NativeStackScreenProps<
+  RootStackParamList,
+  'AddNewPlaceScreen'
+>;
+
 export type ChatDetailScreenProps = NativeStackScreenProps<
   RootStackParamList,
   'ChatDetailScreen'

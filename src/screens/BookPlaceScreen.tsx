@@ -34,6 +34,13 @@ const HOUR_OPTIONS = Array.from({ length: 8 }, (_, i) => {
 const today = new Date();
 const MARKED_DATES = [6, 10, 23].map(day => new Date(today.getFullYear(), today.getMonth(), day));
 
+const MONTH_SHORT = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+const formatDate = (date: Date) =>
+  `${date.getDate()} ${MONTH_SHORT[date.getMonth()]} ${date.getFullYear()}`;
+
 interface PickerFieldProps {
   label: string;
   value: string;
@@ -101,14 +108,32 @@ const PickerField = ({ label, value, options, onSelect, icon }: PickerFieldProps
 const BookPlaceScreen = ({ navigation, route }: BookPlaceScreenProps) => {
   const { mode } = route.params;
   const isWeekly = mode === 'weekly';
+  const isMonthly = mode === 'monthly';
 
   const [month, setMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [endDate, setEndDate] = useState<Date | null>(null);
   const [startTime, setStartTime] = useState(TIME_SLOTS[2]);
   const [hours, setHours] = useState(HOUR_OPTIONS[1]);
 
   const onChangeMonth = (direction: 1 | -1) => {
     setMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + direction, 1));
+  };
+
+  const handleSelectDate = (date: Date) => {
+    if (!isMonthly) {
+      setSelectedDate(date);
+      return;
+    }
+    if (endDate) {
+      // A range is already set — start a fresh selection from here.
+      setSelectedDate(date);
+      setEndDate(null);
+    } else if (date <= selectedDate) {
+      setSelectedDate(date);
+    } else {
+      setEndDate(date);
+    }
   };
 
   return (
@@ -136,12 +161,32 @@ const BookPlaceScreen = ({ navigation, route }: BookPlaceScreenProps) => {
           month={month}
           onChangeMonth={onChangeMonth}
           selectedDate={selectedDate}
-          onSelectDate={setSelectedDate}
+          onSelectDate={handleSelectDate}
           markedDates={MARKED_DATES}
           rangeDays={isWeekly ? 7 : undefined}
+          rangeEnd={isMonthly ? endDate : undefined}
         />
 
-        {!isWeekly && (
+        {isMonthly && (
+          <View style={styles.dateRangeRow}>
+            <View style={styles.dateRangeField}>
+              <Text style={styles.fieldLabel}>Start Date</Text>
+              <View style={styles.fieldBox}>
+                <Text style={styles.fieldValue}>{formatDate(selectedDate)}</Text>
+              </View>
+            </View>
+            <View style={styles.dateRangeField}>
+              <Text style={styles.fieldLabel}>End Date</Text>
+              <View style={styles.fieldBox}>
+                <Text style={styles.fieldValue}>
+                  {endDate ? formatDate(endDate) : 'Tap an end date'}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {mode === 'single' && (
           <>
             <PickerField
               label="Start Time"
@@ -207,6 +252,14 @@ const styles = StyleSheet.create({
   },
   fieldWrap: {
     marginTop: hp(20),
+  },
+  dateRangeRow: {
+    flexDirection: 'row',
+    gap: wp(14),
+    marginTop: hp(20),
+  },
+  dateRangeField: {
+    flex: 1,
   },
   fieldLabel: {
     marginBottom: hp(10),

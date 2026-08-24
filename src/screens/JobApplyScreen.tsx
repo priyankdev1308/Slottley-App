@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -15,10 +16,11 @@ import CustomButton from '../components/CustomButton';
 import { icons } from '../../assets/icons';
 import { colors } from '../utils/colors';
 import { fonts } from '../utils/fonts';
-import { fontSize, hp, wp } from '../helpers/responsive';
+import { fontSize, hp, wp, isIos } from '../helpers/responsive';
 import { JobApplyScreenProps } from '../interface/screenTypes';
 
 const JobApplyScreen = ({ navigation }: JobApplyScreenProps) => {
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const [cvName, setCvName] = useState<string | null>(null);
   const [experience, setExperience] = useState('02 year');
   const [phone, setPhone] = useState('1258789522');
@@ -40,69 +42,75 @@ const JobApplyScreen = ({ navigation }: JobApplyScreenProps) => {
         <View style={styles.backButton} />
       </View>
 
-      <ScrollView
-        style={styles.flex}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text style={styles.sectionLabel}>Your CV</Text>
-        <View style={styles.cvBox}>
-          <View style={styles.cvPlusCircle}>
-            <Text style={styles.cvPlusText}>+</Text>
+      <KeyboardAvoidingView style={styles.flex} behavior={isIos ? 'padding' : undefined}>
+        <ScrollView
+          ref={scrollRef}
+          style={styles.flex}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.sectionLabel}>Your CV</Text>
+          <View style={styles.cvBox}>
+            <View style={styles.cvPlusCircle}>
+              <Text style={styles.cvPlusText}>+</Text>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={styles.addButton}
+              onPress={() => setCvName('cv-document.pdf')}
+            >
+              <Text style={styles.addButtonText}>Add</Text>
+            </TouchableOpacity>
+            {!!cvName && <Text style={styles.cvFileName}>{cvName}</Text>}
           </View>
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={styles.addButton}
-            onPress={() => setCvName('cv-document.pdf')}
-          >
-            <Text style={styles.addButtonText}>Add</Text>
-          </TouchableOpacity>
-          {!!cvName && <Text style={styles.cvFileName}>{cvName}</Text>}
+
+          <Text style={styles.sectionLabel}>Experience (optional)</Text>
+          <TextInput
+            value={experience}
+            onChangeText={setExperience}
+            placeholder="e.g. 2 years"
+            placeholderTextColor={colors.placeHolder}
+            style={styles.input}
+          />
+
+          <Text style={styles.sectionLabel}>Contact phone (optional)</Text>
+          <TextInput
+            value={phone}
+            onChangeText={setPhone}
+            placeholder="Enter your phone number"
+            placeholderTextColor={colors.placeHolder}
+            keyboardType="phone-pad"
+            style={styles.input}
+          />
+
+          <Text style={styles.sectionLabel}>Message</Text>
+          <TextInput
+            value={message}
+            onChangeText={setMessage}
+            placeholder="Tell them a little about your self"
+            placeholderTextColor={colors.placeHolder}
+            multiline
+            textAlignVertical="top"
+            style={styles.messageInput}
+            onFocus={() =>
+              setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 400)
+            }
+          />
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <CustomButton
+            title="Send Application"
+            onPress={() =>
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'MainTabs', params: { initialTab: 'Job' } }],
+              })
+            }
+          />
         </View>
-
-        <Text style={styles.sectionLabel}>Experience (optional)</Text>
-        <TextInput
-          value={experience}
-          onChangeText={setExperience}
-          placeholder="e.g. 2 years"
-          placeholderTextColor={colors.placeHolder}
-          style={styles.input}
-        />
-
-        <Text style={styles.sectionLabel}>Contact phone (optional)</Text>
-        <TextInput
-          value={phone}
-          onChangeText={setPhone}
-          placeholder="Enter your phone number"
-          placeholderTextColor={colors.placeHolder}
-          keyboardType="phone-pad"
-          style={styles.input}
-        />
-
-        <Text style={styles.sectionLabel}>Message</Text>
-        <TextInput
-          value={message}
-          onChangeText={setMessage}
-          placeholder="Tell them a little about your self"
-          placeholderTextColor={colors.placeHolder}
-          multiline
-          textAlignVertical="top"
-          style={styles.messageInput}
-        />
-      </ScrollView>
-
-      <View style={styles.footer}>
-        <CustomButton
-          title="Send Application"
-          onPress={() =>
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'MainTabs', params: { initialTab: 'Job' } }],
-            })
-          }
-        />
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

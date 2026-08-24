@@ -128,8 +128,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   backIcon: {
-    width: wp(24),
-    height: wp(24),
+    width: wp(32),
+    height: wp(32),
     resizeMode: 'contain',
     tintColor: colors.primary,
   },

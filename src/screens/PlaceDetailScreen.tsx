@@ -306,7 +306,12 @@ const PlaceDetailScreen = ({ navigation }: PlaceDetailScreenProps) => {
             title="Book Instantly"
             onPress={() =>
               navigation.navigate('BookPlaceScreen', {
-                mode: bookingFor === 'Weekly' || bookingFor === 'Monthly' ? 'weekly' : 'single',
+                mode:
+                  bookingFor === 'Weekly'
+                    ? 'weekly'
+                    : bookingFor === 'Monthly'
+                    ? 'monthly'
+                    : 'single',
               })
             }
             buttonStyle={styles.bookButton}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
+  Alert,
   StyleSheet,
   StatusBar,
   ScrollView,
@@ -17,7 +18,7 @@ import { colors } from '../utils/colors';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp, isIos } from '../helpers/responsive';
 import { isValidEmail } from '../helpers/globalFunctions';
-import { supabase, PASSWORD_RESET_REDIRECT_URL } from '../api/supabaseClient';
+import { supabaseAuthLinkClient, PASSWORD_RESET_REDIRECT_URL } from '../api/supabaseClient';
 import ToastAlert from '../components/ToastAlert';
 import { ForgotPasswordScreenProps } from '../interface/screenTypes';
 
@@ -32,7 +33,7 @@ const ForgotPasswordScreen = ({ navigation }: ForgotPasswordScreenProps) => {
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+    const { error } = await supabaseAuthLinkClient.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: PASSWORD_RESET_REDIRECT_URL,
     });
     setLoading(false);
@@ -42,10 +43,19 @@ const ForgotPasswordScreen = ({ navigation }: ForgotPasswordScreenProps) => {
       return;
     }
 
-    ToastAlert({
-      title: 'Check your email',
-      description: 'We sent you a link to reset your password.',
-    });
+    Alert.alert(
+      'Check your email',
+      "We've sent you a Forgot Password email. Please check your inbox to reset your password.",
+      [
+        {
+          text: 'OK',
+          onPress: () => {
+            setEmail('');
+            navigation.goBack();
+          },
+        },
+      ],
+    );
   };
 
   return (
