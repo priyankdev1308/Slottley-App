@@ -98,7 +98,7 @@ const HomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Space Near You</Text>
+          <Text style={styles.sectionTitle}>Spaces Near You</Text>
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => navigation.navigate('SpaceListScreen', { listType: 'nearYou' })}

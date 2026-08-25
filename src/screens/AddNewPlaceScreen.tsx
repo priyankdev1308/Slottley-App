@@ -134,7 +134,7 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
 
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>(['Music System']);
 
-  const [includedInput, setIncludedInput] = useState('Shampoo');
+  const [includedInput, setIncludedInput] = useState('');
   const [includedItems, setIncludedItems] = useState<string[]>(['Shampoo', 'Tea & Coffee']);
 
   const [hourlyPrice, setHourlyPrice] = useState('£12');
@@ -180,7 +180,7 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
     <SafeAreaView style={styles.flex} edges={['top']}>
       <StatusBar barStyle="dark-content" />
 
-      <View style={styles.header}>
+      <View style={styles.header}>1
         <TouchableOpacity
           activeOpacity={0.8}
           style={styles.backButton}
@@ -231,7 +231,12 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
                     style={[styles.optionCard, isSelected && styles.optionCardSelected]}
                   >
                     <View style={styles.categoryRow}>
-                      <View style={styles.categoryTextCol}>
+                      <View
+                        style={[
+                          styles.categoryTextCol,
+                          item.key === 'all' && styles.categoryTextColCentered,
+                        ]}
+                      >
                         <Text style={styles.categoryTitle}>{item.title}</Text>
                         {!!item.description && (
                           <Text style={styles.categoryDescription}>{item.description}</Text>
@@ -609,10 +614,10 @@ const styles = StyleSheet.create({
   photoSlot: {
     width: '30%',
     aspectRatio: 0.85,
-    borderRadius: wp(14),
+    borderRadius: wp(12),
     backgroundColor: colors.sage,
     borderWidth: 1,
-    borderColor: colors.EBEBEB,
+    borderColor: colors.primary20,
     alignItems: 'center',
     justifyContent: 'center',
     padding: wp(8),
@@ -641,15 +646,16 @@ const styles = StyleSheet.create({
   },
   photoAddButtonText: {
     color: colors.white,
-    fontSize: fontSize(12.5),
+    fontSize: fontSize(12),
     fontFamily: fonts.Lato700,
   },
   photoCaption: {
     marginTop: hp(8),
     textAlign: 'center',
     color: colors.darkGray,
-    fontSize: fontSize(9.5),
+    fontSize: fontSize(12),
     fontFamily: fonts.Lato400Italic,
+    fontStyle: 'italic',
   },
   categoryGrid: {
     gap: wp(10),
@@ -675,6 +681,9 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
   },
+  categoryTextColCentered: {
+    alignItems: 'center',
+  },
   categoryTextCol: {
     flex: 1,
     paddingRight: wp(8),
@@ -682,13 +691,13 @@ const styles = StyleSheet.create({
   categoryTitle: {
     color: colors.black,
     fontSize: fontSize(14),
-    fontFamily: fonts.Lato700,
+    fontFamily: fonts.Lato500,
   },
   categoryDescription: {
     marginTop: hp(4),
     color: colors.darkGray,
-    fontSize: fontSize(11),
-    fontFamily: fonts.Lato400,
+    fontSize: fontSize(12),
+    fontFamily: fonts.Lato500,
   },
   radioIcon: {
     width: wp(22),
@@ -712,6 +721,7 @@ const styles = StyleSheet.create({
     color: colors.black,
     fontSize: fontSize(13),
     fontFamily: fonts.Lato400Italic,
+    fontStyle: 'italic',
   },
   contactBox: {
     flexDirection: 'row',
@@ -741,7 +751,7 @@ const styles = StyleSheet.create({
   contactTitle: {
     color: colors.darkGray,
     fontSize: fontSize(14),
-    fontFamily: fonts.Lato600,
+    fontFamily: fonts.Lato700,
   },
   contactLink: {
     marginTop: hp(4),
@@ -756,24 +766,24 @@ const styles = StyleSheet.create({
   cancellationTitle: {
     color: colors.black,
     fontSize: fontSize(16),
-    fontFamily: fonts.Lato700,
+    fontFamily: fonts.Lato600,
   },
   cancellationBullet: {
     marginTop: hp(4),
     color: colors.darkGray,
-    fontSize: fontSize(13),
-    fontFamily: fonts.Lato400,
+    fontSize: fontSize(14),
+    fontFamily: fonts.Lato500,
   },
   input: {
     height: hp(54),
     paddingHorizontal: wp(16),
-    borderRadius: wp(14),
+    borderRadius: wp(12),
     backgroundColor: colors.textPlaceHolderColor,
     borderWidth: 1,
     borderColor: colors.fieldBorder,
     color: colors.black,
-    fontSize: fontSize(14.5),
-    fontFamily: fonts.Lato400,
+    fontSize: fontSize(14),
+    fontFamily: fonts.Lato500,
   },
   textArea: {
     height: hp(100),
@@ -799,7 +809,7 @@ const styles = StyleSheet.create({
     gap: wp(10),
     paddingVertical: hp(12),
     paddingHorizontal: wp(14),
-    borderRadius: wp(14),
+    borderRadius: wp(12),
     backgroundColor: colors.textPlaceHolderColor,
     borderWidth: 1,
     borderColor: colors.fieldBorder,
@@ -861,7 +871,7 @@ const styles = StyleSheet.create({
     gap: wp(8),
     paddingVertical: hp(9),
     paddingHorizontal: wp(14),
-    borderRadius: wp(20),
+    borderRadius: wp(12),
     backgroundColor: colors.primary10,
     borderWidth: 1,
     borderColor: colors.primary90,
@@ -916,6 +926,7 @@ const styles = StyleSheet.create({
     color: colors.black,
     fontSize: fontSize(14),
     fontFamily: fonts.Lato500Italic,
+    fontStyle: 'italic',
   },
   termsRow: {
     flexDirection: 'row',
@@ -938,12 +949,13 @@ const styles = StyleSheet.create({
   termsText: {
     flex: 1,
     color: colors.black,
-    fontSize: fontSize(13.5),
+    fontSize: fontSize(14),
     lineHeight: fontSize(19),
-    fontFamily: fonts.Lato400,
+    fontFamily: fonts.Lato600,
   },
   termsLink: {
     color: colors.primary,
+    fontSize: fontSize(14),
     fontFamily: fonts.Lato700,
     textDecorationLine: 'underline',
   },

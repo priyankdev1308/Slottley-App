@@ -1,129 +1,143 @@
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
 
-import { RootStackParamList } from './common';
+import { RootStackParamList } from "./common";
 
 export type SplashScreenProps = NativeStackScreenProps<
   RootStackParamList,
-  'SplashScreen'
+  "SplashScreen"
 >;
 
 export type OnboardingScreenProps = NativeStackScreenProps<
   RootStackParamList,
-  'OnboardingScreen'
+  "OnboardingScreen"
 >;
 
 export type LoginScreenProps = NativeStackScreenProps<
   RootStackParamList,
-  'LoginScreen'
+  "LoginScreen"
 >;
 
 export type ForgotPasswordScreenProps = NativeStackScreenProps<
   RootStackParamList,
-  'ForgotPasswordScreen'
+  "ForgotPasswordScreen"
 >;
 
 export type ResetPasswordScreenProps = NativeStackScreenProps<
   RootStackParamList,
-  'ResetPasswordScreen'
+  "ResetPasswordScreen"
 >;
 
 export type FilterScreenProps = NativeStackScreenProps<
   RootStackParamList,
-  'FilterScreen'
+  "FilterScreen"
 >;
 
 export type PlaceDetailScreenProps = NativeStackScreenProps<
   RootStackParamList,
-  'PlaceDetailScreen'
+  "PlaceDetailScreen"
 >;
 
 export type SpaceListScreenProps = NativeStackScreenProps<
   RootStackParamList,
-  'SpaceListScreen'
+  "SpaceListScreen"
 >;
 
 export type BookPlaceScreenProps = NativeStackScreenProps<
   RootStackParamList,
-  'BookPlaceScreen'
+  "BookPlaceScreen"
 >;
 
 export type RentAgreementScreenProps = NativeStackScreenProps<
   RootStackParamList,
-  'RentAgreementScreen'
+  "RentAgreementScreen"
 >;
 
 export type PaymentScreenProps = NativeStackScreenProps<
   RootStackParamList,
-  'PaymentScreen'
+  "PaymentScreen"
 >;
 
 export type BookingConfirmationScreenProps = NativeStackScreenProps<
   RootStackParamList,
-  'BookingConfirmationScreen'
+  "BookingConfirmationScreen"
 >;
 
 export type JobDetailScreenProps = NativeStackScreenProps<
   RootStackParamList,
-  'JobDetailScreen'
+  "JobDetailScreen"
 >;
 
 export type JobApplyScreenProps = NativeStackScreenProps<
   RootStackParamList,
-  'JobApplyScreen'
+  "JobApplyScreen"
+>;
+
+export type HostJobRequestDetailsScreenProps = NativeStackScreenProps<
+  RootStackParamList,
+  "HostJobRequestDetails"
+>;
+
+export type HostBookingDetailsScreenProps = NativeStackScreenProps<
+  RootStackParamList,
+  'HostBookingDetails'
+>;
+
+export type SubscriptionScreenProps = NativeStackScreenProps<
+  RootStackParamList,
+  'SubscriptionScreen'
 >;
 
 export type AddNewPlaceScreenProps = NativeStackScreenProps<
   RootStackParamList,
-  'AddNewPlaceScreen'
+  "AddNewPlaceScreen"
 >;
 
 export type ChatDetailScreenProps = NativeStackScreenProps<
   RootStackParamList,
-  'ChatDetailScreen'
+  "ChatDetailScreen"
 >;
 
 export type EditProfileScreenProps = NativeStackScreenProps<
   RootStackParamList,
-  'EditProfileScreen'
+  "EditProfileScreen"
 >;
 
 export type ChangePasswordScreenProps = NativeStackScreenProps<
   RootStackParamList,
-  'ChangePasswordScreen'
+  "ChangePasswordScreen"
 >;
 
 export type WishlistScreenProps = NativeStackScreenProps<
   RootStackParamList,
-  'WishlistScreen'
+  "WishlistScreen"
 >;
 
 export type MyJobApplicationsScreenProps = NativeStackScreenProps<
   RootStackParamList,
-  'MyJobApplicationsScreen'
+  "MyJobApplicationsScreen"
 >;
 
 export type GetVerifiedScreenProps = NativeStackScreenProps<
   RootStackParamList,
-  'GetVerifiedScreen'
+  "GetVerifiedScreen"
 >;
 
 export type ReferEarnScreenProps = NativeStackScreenProps<
   RootStackParamList,
-  'ReferEarnScreen'
+  "ReferEarnScreen"
 >;
 
 export type MyCardsScreenProps = NativeStackScreenProps<
   RootStackParamList,
-  'MyCardsScreen'
+  "MyCardsScreen"
 >;
 
 export type AddNewCardScreenProps = NativeStackScreenProps<
   RootStackParamList,
-  'AddNewCardScreen'
+  "AddNewCardScreen"
 >;
 
 export type NotificationScreenProps = NativeStackScreenProps<
   RootStackParamList,
-  'NotificationScreen'
+  "NotificationScreen"
 >;
-

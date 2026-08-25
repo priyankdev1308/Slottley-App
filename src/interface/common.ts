@@ -5,12 +5,12 @@ import {
   ImageStyle,
   ImageSourcePropType,
   KeyboardTypeOptions,
-} from 'react-native';
-import type { SpaceRole, MainTabParamList } from '../navigation/TabNav';
+} from "react-native";
+import type { SpaceRole, MainTabParamList } from "../navigation/TabNav";
 
 export interface SavedCard {
   id: string;
-  brand: 'visa' | 'mastercard';
+  brand: "visa" | "mastercard";
   last4: string;
   first4: string;
 }
@@ -36,13 +36,16 @@ export type RootStackParamList = {
     | undefined;
   FilterScreen: undefined;
   PlaceDetailScreen: { spaceId?: string } | undefined;
-  SpaceListScreen: { listType: 'nearYou' | 'featured' };
-  BookPlaceScreen: { mode: 'single' | 'weekly' | 'monthly'; spaceId?: string };
+  SpaceListScreen: { listType: "nearYou" | "featured" };
+  BookPlaceScreen: { mode: "single" | "weekly" | "monthly"; spaceId?: string };
   RentAgreementScreen: undefined;
   PaymentScreen: undefined;
   BookingConfirmationScreen: undefined;
   JobDetailScreen: { jobId?: string } | undefined;
   JobApplyScreen: { jobId?: string } | undefined;
+  HostJobRequestDetails: { requestId?: string } | undefined;
+  HostBookingDetails: { bookingId?: string } | undefined;
+  SubscriptionScreen: undefined;
   ChatDetailScreen: { contactId: string; name: string };
   WishlistScreen: undefined;
   MyJobApplicationsScreen: undefined;
@@ -57,9 +60,7 @@ export type RootStackParamList = {
   MainTabs:
     | { userRole?: SpaceRole; initialTab?: keyof MainTabParamList }
     | undefined;
-  BreakfastDetailScreen:
-    | { mealType?: string; date?: string }
-    | undefined;
+  BreakfastDetailScreen: { mealType?: string; date?: string } | undefined;
   AddMealScreen:
     | {
         mealId?: number;
@@ -138,7 +139,7 @@ export interface TextInputProps {
   customInputStyle?: StyleProp<TextStyle>;
   customShadowStyle?: StyleProp<ViewStyle>;
   customTextBoxStyle?: StyleProp<ViewStyle>;
-  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters' | undefined;
+  autoCapitalize?: "none" | "sentences" | "words" | "characters" | undefined;
 }
 
 export interface CustomButtonProps {
@@ -153,5 +154,5 @@ export interface CustomButtonProps {
   iconStyle?: StyleProp<ImageStyle>;
   buttonStyle?: StyleProp<ViewStyle>;
   containerStyle?: StyleProp<ViewStyle>;
-  buttonType?: 'primary' | 'secondary' | 'outline';
+  buttonType?: "primary" | "secondary" | "outline";
 }

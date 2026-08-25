@@ -41,7 +41,7 @@ const getTabs = (userRole: SpaceRole): TabItem[] => [
   },
   {
     key: 'Booking',
-    label: 'Booking',
+    label: userRole === 'host' ? 'My Booking' : 'Booking',
     icon: icons.tabBooking,
     selectedIcon: icons.tabBookingSelected,
   },

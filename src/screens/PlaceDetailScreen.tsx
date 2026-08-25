@@ -49,7 +49,7 @@ const REVIEWS = [
   },
   {
     id: 'r2',
-    name: 'Emily Jhonson',
+    name: 'Emily Johnson',
     time: '3h',
     rating: 3,
     text: 'Great location and a professional setup. Would definitely book this space again.',
@@ -187,7 +187,7 @@ const PlaceDetailScreen = ({ navigation }: PlaceDetailScreenProps) => {
 
           <View style={styles.divider} />
 
-          <Text style={styles.sectionLabel}>What's Include</Text>
+          <Text style={styles.sectionLabel}>What’s Included</Text>
           <View style={styles.includedRow}>
             {INCLUDED.map(item => (
               <View key={item} style={styles.includedChip}>
@@ -216,7 +216,7 @@ const PlaceDetailScreen = ({ navigation }: PlaceDetailScreenProps) => {
 
           <Text style={styles.sectionLabel}>Location</Text>
           <View style={styles.locationBox}>
-            <Text style={styles.locationText}>London- Bayswater</Text>
+            <Text style={styles.locationText}>London — Bayswater</Text>
           </View>
           <View style={styles.mapWrap}>
             <MapView
@@ -310,8 +310,8 @@ const PlaceDetailScreen = ({ navigation }: PlaceDetailScreenProps) => {
                   bookingFor === 'Weekly'
                     ? 'weekly'
                     : bookingFor === 'Monthly'
-                    ? 'monthly'
-                    : 'single',
+                      ? 'monthly'
+                      : 'single',
               })
             }
             buttonStyle={styles.bookButton}

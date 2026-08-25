@@ -17,7 +17,7 @@ import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp } from '../helpers/responsive';
 import { MyJobApplicationsScreenProps } from '../interface/screenTypes';
 
-type ApplicationStatus = 'Applied' | 'Shortlisted' | 'Rejected';
+type ApplicationStatus = 'Applied' | 'Shortlisted' | 'Declined';
 
 interface JobApplication {
   id: string;
@@ -35,7 +35,7 @@ const STATUS_STYLES: Record<
 > = {
   Applied: { text: colors.primary, bg: colors.primary10, border: colors.primary50 },
   Shortlisted: { text: colors.complete, bg: colors.completeBg, border: colors.completeBorder },
-  Rejected: { text: colors.red, bg: colors.lightRed, border: colors.red80 },
+  Declined: { text: colors.red, bg: colors.lightRed, border: colors.red80 },
 };
 
 const INITIAL_APPLICATIONS: JobApplication[] = [
@@ -67,7 +67,7 @@ const INITIAL_APPLICATIONS: JobApplication[] = [
     schedule: 'Full Time',
     description:
       'A luxurious private beauty room perfect for hairstylists, beauticians, and wellness professionals.',
-    status: 'Rejected',
+    status: 'Declined',
   },
 ];
 
@@ -101,7 +101,7 @@ const MyJobApplicationsScreen = ({ navigation }: MyJobApplicationsScreenProps) =
         >
           <Image source={icons.back} style={styles.backIcon} resizeMode="contain" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>My job applications</Text>
+        <Text style={styles.headerTitle}>My Job Applications</Text>
         <View style={styles.backButton} />
       </View>
 

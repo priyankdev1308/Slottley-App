@@ -88,7 +88,7 @@ const JobApplyScreen = ({ navigation }: JobApplyScreenProps) => {
           <TextInput
             value={message}
             onChangeText={setMessage}
-            placeholder="Tell them a little about your self"
+            placeholder="Tell them a little about yourself"
             placeholderTextColor={colors.placeHolder}
             multiline
             textAlignVertical="top"

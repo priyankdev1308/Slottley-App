@@ -40,6 +40,7 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
   const [signInLoading, setSignInLoading] = useState(false);
 
   const [fullName, setFullName] = useState('');
+  const [surName, setSurName] = useState('');
   const [referralCode, setReferralCode] = useState('');
   const [registerEmail, setRegisterEmail] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
@@ -232,10 +233,18 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                   </View>
 
                   <CustomTextInput
-                    label="Full Name"
-                    placeholder="Enter your full name"
+                    label="First Name"
+                    placeholder="Enter your first name"
                     value={fullName}
                     onChangeText={setFullName}
+                    maxLength={25}
+                    containerStyle={styles.fieldSpacing}
+                  />
+                  <CustomTextInput
+                    label="Surname"
+                    placeholder="Enter surname"
+                    value={surName}
+                    onChangeText={setSurName}
                     maxLength={25}
                     containerStyle={styles.fieldSpacing}
                   />

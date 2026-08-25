@@ -24,7 +24,7 @@ interface UploadItem {
 }
 
 const UPLOAD_ITEMS: UploadItem[] = [
-  { key: 'photoId', title: 'Photo ID (Passport or Driving licence)' },
+  { key: 'photoId', title: 'Photo ID (Passport or Driving Licence)' },
   {
     key: 'liabilityInsurance',
     title: 'Liability Insurance Certificate',
@@ -48,7 +48,7 @@ const GetVerifiedScreen = ({ navigation }: GetVerifiedScreenProps) => {
         >
           <Image source={icons.back} style={styles.backIcon} resizeMode="contain" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Get verified</Text>
+        <Text style={styles.headerTitle}>Get Verified</Text>
         <View style={styles.backButton} />
       </View>
 

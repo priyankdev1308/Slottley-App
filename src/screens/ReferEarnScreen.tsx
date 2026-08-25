@@ -39,7 +39,7 @@ const ReferEarnScreen = ({ navigation }: ReferEarnScreenProps) => {
 
   const handleShare = () => {
     Share.share({
-      message: `Use my Slottley referral code ${REFERRAL_CODE} and we both get credit!`,
+      message: `Hey! I've been using Slottley to rent beauty and wellness space flexibly — worth a look if you're a stylist, therapist, nail tech or salon/studio owner. Use my code ${REFERRAL_CODE} when you sign up and you'll get £10 credit (I do too)!`,
     });
   };
 
@@ -56,7 +56,7 @@ const ReferEarnScreen = ({ navigation }: ReferEarnScreenProps) => {
           <Image source={icons.back} style={styles.backIcon} />
         </TouchableOpacity>
         <Text numberOfLines={1} style={styles.headerTitle}>
-          Refer &amp; earn
+          Refer &amp; Earn
         </Text>
         <View style={styles.backButton} />
       </View>

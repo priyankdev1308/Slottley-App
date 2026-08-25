@@ -12,6 +12,7 @@ import HomeScreen from '../screens/HomeScreen';
 import HostHomeScreen from '../screens/HostHomeScreen';
 import JobScreen from '../screens/JobScreen';
 import BookingScreen from '../screens/BookingScreen';
+import HostMyBookingScreen from '../screens/HostMyBookingScreen';
 import ChatScreen from '../screens/ChatScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import { RootStackParamList } from '../interface/common';
@@ -63,7 +64,10 @@ const TabNav = ({ route }: TabNavProps) => {
         component={userRole === 'host' ? HostHomeScreen : HomeScreen}
       />
       <Tab.Screen name="Job" component={JobScreen} />
-      <Tab.Screen name="Booking" component={BookingScreen} />
+      <Tab.Screen
+        name="Booking"
+        component={userRole === 'host' ? HostMyBookingScreen : BookingScreen}
+      />
       <Tab.Screen name="Chat" component={ChatScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>

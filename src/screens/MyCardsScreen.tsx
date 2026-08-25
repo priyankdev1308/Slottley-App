@@ -59,7 +59,7 @@ const MyCardsScreen = ({ navigation }: MyCardsScreenProps) => {
           <Image source={icons.back} style={styles.backIcon} />
         </TouchableOpacity>
         <Text numberOfLines={1} style={styles.headerTitle}>
-          My Card&apos;s
+          My Cards
         </Text>
         <View style={styles.backButton} />
       </View>

@@ -179,13 +179,13 @@ const FilterScreen = ({ navigation }: FilterScreenProps) => {
                       isSelected && styles.categoryCardSelected,
                     ]}
                   >
-                    <View
-                      style={[
-                        styles.categoryRow,
-                        item.key === 'all' && styles.categoryRowCentered,
-                      ]}
-                    >
-                      <View style={styles.categoryTextCol}>
+                    <View style={styles.categoryRow}>
+                      <View
+                        style={[
+                          styles.categoryTextCol,
+                          item.key === 'all' && styles.categoryTextColCentered,
+                        ]}
+                      >
                         <Text style={styles.categoryTitle}>{item.title}</Text>
                         {!!item.description && (
                           <Text style={styles.categoryDescription}>{item.description}</Text>
@@ -374,8 +374,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
   },
-  categoryRowCentered: {
-    flex: 1,
+  categoryTextColCentered: {
     alignItems: 'center',
   },
   categoryTextCol: {

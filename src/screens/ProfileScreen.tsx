@@ -27,6 +27,13 @@ const ROLE_LABELS: Record<SpaceRole, string> = {
   host: 'Host',
 };
 
+const formatFullName = (name: string | null | undefined) =>
+  name
+    ?.trim()
+    .split(/\s+/)
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ') || '—';
+
 interface UserProfile {
   full_name: string | null;
   email: string | null;
@@ -45,10 +52,11 @@ const OPTIONS: ProfileOption[] = [
   { key: 'edit', icon: icons.editProfile, title: 'Edit Profile' },
   { key: 'password', icon: icons.passwordKey, title: 'Change Password' },
   { key: 'wishlist', icon: icons.wishlist, title: 'My Wishlist' },
-  { key: 'jobs', icon: icons.myJobApplications, title: 'My job applications' },
-  { key: 'cards', icon: icons.cards, title: "My Card's" },
-  { key: 'verified', icon: icons.verified, title: 'Get verified' },
-  { key: 'refer', icon: icons.refer, title: 'Refer & earn £10', rightLabel: '#SPA1258' },
+  { key: 'jobs', icon: icons.myJobApplications, title: 'My Job Applications' },
+  { key: 'cards', icon: icons.cards, title: "My Cards" },
+  { key: 'verified', icon: icons.verified, title: 'Get Verified' },
+  { key: 'refer', icon: icons.refer, title: 'Refer & Earn £10', rightLabel: '#SPA1258' },
+  { key: 'subscription', icon: icons.subscription, title: 'Subscription' },
   { key: 'logout', icon: icons.signoutRed, title: 'Log out', danger: true },
   { key: 'delete', icon: icons.deleteAccount, title: 'Delete Account', danger: true },
 ];
@@ -111,6 +119,8 @@ const ProfileScreen = ({ navigation }: MainTabScreenProps<'Profile'>) => {
       setLogoutModalVisible(true);
     } else if (key === 'delete') {
       setDeleteModalVisible(true);
+    } else if (key === 'subscription') {
+      navigation.navigate('SubscriptionScreen');
     }
   };
 
@@ -165,7 +175,7 @@ const ProfileScreen = ({ navigation }: MainTabScreenProps<'Profile'>) => {
           ) : (
             <>
               <View style={styles.profileTextCol}>
-                <Text style={styles.name}>{profile?.full_name || '—'}</Text>
+                <Text style={styles.name}>{formatFullName(profile?.full_name)}</Text>
                 <Text style={styles.email}>{profile?.email || '—'}</Text>
               </View>
               <View style={styles.roleBadge}>
@@ -177,7 +187,9 @@ const ProfileScreen = ({ navigation }: MainTabScreenProps<'Profile'>) => {
           )}
         </View>
 
-        {OPTIONS.map(option => (
+        {OPTIONS.filter(
+          option => option.key !== 'subscription' || profile?.role === 'host',
+        ).map(option => (
           <TouchableOpacity
             key={option.key}
             activeOpacity={0.8}
