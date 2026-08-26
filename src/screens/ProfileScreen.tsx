@@ -27,18 +27,29 @@ const ROLE_LABELS: Record<SpaceRole, string> = {
   host: 'Host',
 };
 
-const formatFullName = (name: string | null | undefined) =>
-  name
-    ?.trim()
-    .split(/\s+/)
-    .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+const capitalize = (part: string) =>
+  part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+
+const formatFullName = (firstName: string | null | undefined, surName: string | null | undefined) =>
+  [firstName, surName]
+    .filter(Boolean)
+    .map(part => part!.trim())
+    .filter(Boolean)
+    .flatMap(part => part.split(/\s+/))
+    .map(capitalize)
     .join(' ') || '—';
 
 interface UserProfile {
-  full_name: string | null;
+  first_name: string | null;
+  sur_name: string | null;
   email: string | null;
   role: SpaceRole | null;
+  profile_image: string | null;
+  login_type: string | null;
+  referral_code: string | null;
 }
+
+const PROFILE_IMAGE_BUCKET = 'profile_images';
 
 interface ProfileOption {
   key: string;
@@ -55,7 +66,7 @@ const OPTIONS: ProfileOption[] = [
   { key: 'jobs', icon: icons.myJobApplications, title: 'My Job Applications' },
   { key: 'cards', icon: icons.cards, title: "My Cards" },
   { key: 'verified', icon: icons.verified, title: 'Get Verified' },
-  { key: 'refer', icon: icons.refer, title: 'Refer & Earn £10', rightLabel: '#SPA1258' },
+  { key: 'refer', icon: icons.refer, title: 'Refer & Earn £10' },
   { key: 'subscription', icon: icons.subscription, title: 'Subscription' },
   { key: 'logout', icon: icons.signoutRed, title: 'Log out', danger: true },
   { key: 'delete', icon: icons.deleteAccount, title: 'Delete Account', danger: true },
@@ -82,7 +93,7 @@ const ProfileScreen = ({ navigation }: MainTabScreenProps<'Profile'>) => {
 
         const { data, error } = await supabase
           .from('users')
-          .select('full_name, email, role')
+          .select('first_name, sur_name, email, role, profile_image, login_type, referral_code')
           .eq('id', authData.user.id)
           .single();
 
@@ -160,9 +171,17 @@ const ProfileScreen = ({ navigation }: MainTabScreenProps<'Profile'>) => {
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
             <Image
-              source={icons.tabProfile}
-              style={styles.avatarIcon}
-              resizeMode="contain"
+              source={
+                profile?.profile_image
+                  ? {
+                    uri: supabase.storage
+                      .from(PROFILE_IMAGE_BUCKET)
+                      .getPublicUrl(profile.profile_image).data.publicUrl,
+                  }
+                  : icons.tabProfile
+              }
+              style={profile?.profile_image ? styles.avatarPhoto : styles.avatarIcon}
+              resizeMode={profile?.profile_image ? 'cover' : 'contain'}
             />
           </View>
           {profileLoading ? (
@@ -175,7 +194,7 @@ const ProfileScreen = ({ navigation }: MainTabScreenProps<'Profile'>) => {
           ) : (
             <>
               <View style={styles.profileTextCol}>
-                <Text style={styles.name}>{formatFullName(profile?.full_name)}</Text>
+                <Text style={styles.name}>{formatFullName(profile?.first_name, profile?.sur_name)}</Text>
                 <Text style={styles.email}>{profile?.email || '—'}</Text>
               </View>
               <View style={styles.roleBadge}>
@@ -187,41 +206,48 @@ const ProfileScreen = ({ navigation }: MainTabScreenProps<'Profile'>) => {
           )}
         </View>
 
-        {OPTIONS.filter(
-          option => option.key !== 'subscription' || profile?.role === 'host',
-        ).map(option => (
-          <TouchableOpacity
-            key={option.key}
-            activeOpacity={0.8}
-            style={styles.optionRow}
-            onPress={() => handlePress(option.key)}
-          >
-            <Image
-              source={option.icon}
-              style={[
-                styles.optionIcon,
-                option.danger && option.key !== 'logout' && { tintColor: colors.red },
-              ]}
-              resizeMode="contain"
-            />
-            <Text
-              style={[styles.optionTitle, option.danger && { color: colors.red }]}
+        {OPTIONS.filter(option => {
+          if (option.key === 'subscription') return profile?.role === 'host';
+          if (option.key === 'password') return !profile?.login_type || profile.login_type === 'email';
+          return true;
+        }).map(option => {
+          const rightLabel =
+            option.key === 'refer' ? profile?.referral_code ?? undefined : option.rightLabel;
+
+          return (
+            <TouchableOpacity
+              key={option.key}
+              activeOpacity={0.8}
+              style={styles.optionRow}
+              onPress={() => handlePress(option.key)}
             >
-              {option.title}
-            </Text>
-            {!!option.rightLabel && (
-              <View style={styles.rightLabelRow}>
-                <Image
-                  source={icons.copyText}
-                  style={styles.rightLabelIcon}
-                  resizeMode="contain"
-                />
-                <Text style={styles.rightLabelText}>{option.rightLabel}</Text>
-              </View>
-            )}
-            <Image source={icons.arrow} style={styles.chevron} resizeMode="contain" />
-          </TouchableOpacity>
-        ))}
+              <Image
+                source={option.icon}
+                style={[
+                  styles.optionIcon,
+                  option.danger && option.key !== 'logout' && { tintColor: colors.red },
+                ]}
+                resizeMode="contain"
+              />
+              <Text
+                style={[styles.optionTitle, option.danger && { color: colors.red }]}
+              >
+                {option.title}
+              </Text>
+              {!!rightLabel && (
+                <View style={styles.rightLabelRow}>
+                  <Image
+                    source={icons.copyText}
+                    style={styles.rightLabelIcon}
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.rightLabelText}>{rightLabel}</Text>
+                </View>
+              )}
+              <Image source={icons.arrow} style={styles.chevron} resizeMode="contain" />
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
 
       <ConfirmModal
@@ -300,7 +326,12 @@ const styles = StyleSheet.create({
   avatarIcon: {
     width: wp(32),
     height: wp(32),
-    tintColor: colors.subText,
+    tintColor: colors.primary,
+  },
+  avatarPhoto: {
+    width: '100%',
+    height: '100%',
+    borderRadius: wp(32),
   },
   profileTextCol: {
     flex: 1,

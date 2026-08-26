@@ -30,6 +30,14 @@
 				<string>slottley</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.478160453913-19c7990vqfnr8qsep3ufp3a16a2b43rc</string>
+			</array>
+		</dict>
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
@@ -42,6 +50,10 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Slottley needs camera access so you can take a new profile photo.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Slottley needs photo library access so you can choose a profile photo.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>Lato-Italic.ttf</string>

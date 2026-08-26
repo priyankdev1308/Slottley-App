@@ -19,6 +19,8 @@ import { colors } from '../utils/colors';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp } from '../helpers/responsive';
 import { supabase } from '../api/supabaseClient';
+import { getGreeting } from '../helpers/globalFunctions';
+import { useProfileAvatarUrl } from '../hooks/useProfileAvatarUrl';
 import { MainTabScreenProps } from '../navigation/TabNav';
 import { NEAR_YOU, FEATURED } from '../utils/spacesMockData';
 
@@ -26,6 +28,7 @@ const CQC_INFO_SEEN_KEY_PREFIX = 'cqc_info_seen_';
 
 const HomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
   const [cqcModalVisible, setCqcModalVisible] = useState(false);
+  const avatarUrl = useProfileAvatarUrl();
 
   useEffect(() => {
     (async () => {
@@ -48,14 +51,14 @@ const HomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
         <View style={styles.headerTop}>
           <View style={styles.avatar}>
             <Image
-              source={icons.tabProfile}
-              style={styles.avatarIcon}
-              resizeMode="contain"
+              source={avatarUrl ? { uri: avatarUrl } : icons.tabProfile}
+              style={avatarUrl ? styles.avatarPhoto : styles.avatarIcon}
+              resizeMode={avatarUrl ? 'cover' : 'contain'}
             />
           </View>
 
           <View style={styles.greetingCol}>
-            <Text style={styles.greeting}>Hello Good Morning</Text>
+            <Text style={styles.greeting}>{getGreeting()}</Text>
             <Text style={styles.heading}>Find a Space That Works For You</Text>
           </View>
 
@@ -180,6 +183,11 @@ const styles = StyleSheet.create({
     width: wp(26),
     height: wp(26),
     tintColor: colors.white,
+  },
+  avatarPhoto: {
+    width: '100%',
+    height: '100%',
+    borderRadius: wp(26),
   },
   greetingCol: {
     flex: 1,

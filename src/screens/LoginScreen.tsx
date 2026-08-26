@@ -25,11 +25,25 @@ import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp, isIos } from '../helpers/responsive';
 import { isValidEmail } from '../helpers/globalFunctions';
 import { supabase } from '../api/supabaseClient';
+import { getGoogleIdToken, signOutGoogle } from '../api/googleSignIn';
 import ToastAlert from '../components/ToastAlert';
 import { LoginScreenProps } from '../interface/screenTypes';
 import { SpaceRole } from '../navigation/TabNav';
 
 type AuthTab = 'login' | 'register';
+
+// Google's ID token usually carries given_name/family_name, but falls back
+// to splitting the combined display name when it doesn't.
+const deriveGoogleName = (metadata: Record<string, any> | undefined) => {
+  const given = (metadata?.given_name as string | undefined)?.trim();
+  const family = (metadata?.family_name as string | undefined)?.trim();
+  if (given || family) return { firstName: given ?? '', surName: family ?? '' };
+
+  const full = ((metadata?.full_name ?? metadata?.name) as string | undefined)?.trim() ?? '';
+  if (!full) return { firstName: '', surName: '' };
+  const [firstName, ...rest] = full.split(/\s+/);
+  return { firstName, surName: rest.join(' ') };
+};
 
 const LoginScreen = ({ navigation }: LoginScreenProps) => {
   const [activeTab, setActiveTab] = useState<AuthTab>('login');
@@ -39,13 +53,14 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
   const [password, setPassword] = useState('');
   const [signInLoading, setSignInLoading] = useState(false);
 
-  const [fullName, setFullName] = useState('');
+  const [firstName, setFirstName] = useState('');
   const [surName, setSurName] = useState('');
   const [referralCode, setReferralCode] = useState('');
   const [registerEmail, setRegisterEmail] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [signUpLoading, setSignUpLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const isLogin = activeTab === 'login';
 
@@ -86,8 +101,8 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
   };
 
   const handleSignUp = async () => {
-    if (!fullName.trim()) {
-      ToastAlert({ title: 'Full name required', description: 'Please enter your full name.' });
+    if (!firstName.trim()) {
+      ToastAlert({ title: 'First name required', description: 'Please enter your first name.' });
       return;
     }
     if (!isValidEmail(registerEmail)) {
@@ -115,7 +130,8 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
       password: registerPassword,
       options: {
         data: {
-          full_name: fullName.trim(),
+          first_name: firstName.trim(),
+          sur_name: surName.trim() || null,
           referral_code: referralCode.trim() || null,
           role,
         },
@@ -138,6 +154,98 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
     }
 
     navigation.reset({ index: 0, routes: [{ name: 'MainTabs', params: { userRole: role } }] });
+  };
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    try {
+      const idToken = await getGoogleIdToken();
+      if (!idToken) {
+        setGoogleLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token: idToken,
+      });
+
+      if (error) {
+        setGoogleLoading(false);
+        ToastAlert({ title: 'Google sign-in failed', description: error.message });
+        return;
+      }
+
+      // Shared by both branches below: raw_app_meta_data.provider and the
+      // signup trigger only reflect how the account was *originally*
+      // created, so an account that started as an email sign-up (or a
+      // previous Google attempt before this fix) would otherwise stay
+      // stuck on stale login_type/first_name/sur_name values. Only fill
+      // the name in if it's actually blank, so this never overwrites
+      // something the user already entered via Edit Profile.
+      const { data: profile } = await supabase
+        .from('users')
+        .select('role, first_name, sur_name')
+        .eq('id', data.user.id)
+        .single();
+
+      const googleName = deriveGoogleName(data.user.user_metadata);
+      const nameFallback: { first_name?: string; sur_name?: string } = {};
+      if (!profile?.first_name && googleName.firstName) nameFallback.first_name = googleName.firstName;
+      if (!profile?.sur_name && googleName.surName) nameFallback.sur_name = googleName.surName;
+
+      if (isLogin) {
+        // Google never sends a role — a null role here means this identity
+        // was never actually registered (either truly new, or a leftover
+        // from someone trying Google on this tab before registering).
+        if (!profile?.role) {
+          await supabase.auth.signOut();
+          await signOutGoogle();
+          setGoogleLoading(false);
+          ToastAlert({
+            title: 'No account found',
+            description: 'Please register first, then sign in with Google.',
+          });
+          return;
+        }
+
+        await supabase
+          .from('users')
+          .update({ login_type: 'google', ...nameFallback })
+          .eq('id', data.user.id);
+
+        setGoogleLoading(false);
+        navigation.reset({
+          index: 0,
+          routes: [{ name: 'MainTabs', params: { userRole: profile.role as SpaceRole } }],
+        });
+        return;
+      }
+
+      // Register tab — commit whichever role is currently selected,
+      // whether this identity is brand new or a previously-abandoned one.
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ role, login_type: 'google', ...nameFallback })
+        .eq('id', data.user.id);
+      setGoogleLoading(false);
+
+      if (updateError) {
+        ToastAlert({
+          title: 'Could not complete registration',
+          description: updateError.message,
+        });
+        return;
+      }
+
+      navigation.reset({ index: 0, routes: [{ name: 'MainTabs', params: { userRole: role } }] });
+    } catch (err) {
+      setGoogleLoading(false);
+      ToastAlert({
+        title: 'Google sign-in failed',
+        description: err instanceof Error ? err.message : 'Something went wrong.',
+      });
+    }
   };
 
   return (
@@ -232,22 +340,24 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
                     />
                   </View>
 
-                  <CustomTextInput
-                    label="First Name"
-                    placeholder="Enter your first name"
-                    value={fullName}
-                    onChangeText={setFullName}
-                    maxLength={25}
-                    containerStyle={styles.fieldSpacing}
-                  />
-                  <CustomTextInput
-                    label="Surname"
-                    placeholder="Enter surname"
-                    value={surName}
-                    onChangeText={setSurName}
-                    maxLength={25}
-                    containerStyle={styles.fieldSpacing}
-                  />
+                  <View style={styles.nameRow}>
+                    <CustomTextInput
+                      label="First Name"
+                      placeholder="First name"
+                      value={firstName}
+                      onChangeText={setFirstName}
+                      maxLength={25}
+                      containerStyle={[styles.fieldSpacing, styles.halfField]}
+                    />
+                    <CustomTextInput
+                      label="Surname"
+                      placeholder="Surname"
+                      value={surName}
+                      onChangeText={setSurName}
+                      maxLength={25}
+                      containerStyle={[styles.fieldSpacing, styles.halfField]}
+                    />
+                  </View>
                   <CustomTextInput
                     label="Referral Code"
                     placeholder="Enter referral code"
@@ -289,7 +399,12 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
               <OrDivider />
 
               <View style={styles.socialRow}>
-                <SocialButton label="Google" icon={<GoogleIcon />} onPress={() => { }} />
+                <SocialButton
+                  label="Google"
+                  icon={<GoogleIcon />}
+                  onPress={handleGoogleSignIn}
+                  disabled={googleLoading}
+                />
                 <SocialButton label="Apple" icon={<AppleIcon />} onPress={() => { }} />
               </View>
             </View>
@@ -323,6 +438,13 @@ const styles = StyleSheet.create({
   },
   fieldSpacing: {
     marginTop: hp(4),
+  },
+  nameRow: {
+    flexDirection: 'row',
+    gap: wp(12),
+  },
+  halfField: {
+    flex: 1,
   },
   sectionLabel: {
     marginBottom: hp(10),

@@ -71,4 +71,7 @@ export const icons = {
   tabProfileSelected: require('./ic_tab_profile_selected.png'),
   tabChatSelected: require('./ic_tab_chat_selected.png'),
   selectMark: require('./ic_select_mark.png'),
+  addfriend: require('./ic_add-friend.png'),
+  qualified: require('./ic_qualified.png'),
+  addRound: require('./ic_add_round.png'),
 };

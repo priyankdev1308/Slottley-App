@@ -27,7 +27,7 @@ const CqcInfoModal = ({ visible, onClose }: CqcInfoModalProps) => (
           CQC registration status is self-declared by the host and verified by
           Slottley against the public register where indicated. Absence of
           this badge does not imply non-compliance. Practitioners are
-          responsible for confirming a space meets requirements for their.”
+          responsible for confirming a space meets requirements for their specific treatments.
         </Text>
       </View>
     </View>

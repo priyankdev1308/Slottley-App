@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   StatusBar,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
   Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,11 +19,11 @@ import ToastAlert from '../components/ToastAlert';
 import { colors } from '../utils/colors';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp } from '../helpers/responsive';
+import { supabase } from '../api/supabaseClient';
 import { ReferEarnScreenProps } from '../interface/screenTypes';
 
-// TODO: replace with the signed-in user's real referral code + credit
-// balance (public.users) once this screen is wired to Supabase.
-const REFERRAL_CODE = 'SPAC258F';
+// TODO: replace with the signed-in user's real credit balance
+// (public.users) once that's tracked — referral_code is already real.
 const CREDIT_BALANCE = 100;
 
 const HOW_IT_WORKS = [
@@ -32,14 +33,38 @@ const HOW_IT_WORKS = [
 ];
 
 const ReferEarnScreen = ({ navigation }: ReferEarnScreenProps) => {
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) {
+        setLoading(false);
+        return;
+      }
+
+      const { data } = await supabase
+        .from('users')
+        .select('referral_code')
+        .eq('id', authData.user.id)
+        .single();
+
+      setReferralCode(data?.referral_code ?? null);
+      setLoading(false);
+    })();
+  }, []);
+
   const handleCopy = () => {
-    Clipboard.setString(REFERRAL_CODE);
+    if (!referralCode) return;
+    Clipboard.setString(referralCode);
     ToastAlert({ title: 'Copied', description: 'Referral code copied to clipboard.' });
   };
 
   const handleShare = () => {
+    if (!referralCode) return;
     Share.share({
-      message: `Hey! I've been using Slottley to rent beauty and wellness space flexibly — worth a look if you're a stylist, therapist, nail tech or salon/studio owner. Use my code ${REFERRAL_CODE} when you sign up and you'll get £10 credit (I do too)!`,
+      message: `Hey! I've been using Slottley to rent beauty and wellness space flexibly — worth a look if you're a stylist, therapist, nail tech or salon/studio owner. Use my code ${referralCode} when you sign up and you'll get £10 credit (I do too)!`,
     });
   };
 
@@ -78,15 +103,23 @@ const ReferEarnScreen = ({ navigation }: ReferEarnScreenProps) => {
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={handleCopy}
+          disabled={!referralCode}
           style={styles.codeBox}
         >
-          <Image source={icons.copyText} style={styles.copyIcon} />
-          <Text style={styles.codeText}>{REFERRAL_CODE}</Text>
+          {loading ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <>
+              <Image source={icons.copyText} style={styles.copyIcon} />
+              <Text style={styles.codeText}>{referralCode ?? '—'}</Text>
+            </>
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={handleShare}
+          disabled={!referralCode}
           style={styles.shareButton}
         >
           <ShareIcon color={colors.primary} />

@@ -315,7 +315,6 @@ const styles = StyleSheet.create({
   bookingCard: {
     marginTop: hp(20),
     borderRadius: wp(8),
-    overflow: "hidden",
     backgroundColor: colors.white,
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },

@@ -39,6 +39,11 @@ import MyCardsScreen from "../screens/MyCardsScreen";
 import AddNewCardScreen from "../screens/AddNewCardScreen";
 import NotificationScreen from "../screens/NotificationScreen";
 import AddNewPlaceScreen from "../screens/AddNewPlaceScreen";
+import HostPlaceDetailScreen from "../screens/HostPlaceDetailScreen";
+import AddNewJobScreen from "../screens/AddNewJobScreen";
+import HostJobDetailScreen from "../screens/HostJobDetailScreen";
+import HostJobRequestScreen from "../screens/HostJobRequestScreen";
+import HostPaymentScreen from "../screens/HostPaymentScreen";
 import TabNav from "./TabNav";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -228,6 +233,20 @@ const StackNav = () => {
           component={NotificationScreen}
         />
         <Stack.Screen name="AddNewPlaceScreen" component={AddNewPlaceScreen} />
+        <Stack.Screen
+          name="HostPlaceDetailScreen"
+          component={HostPlaceDetailScreen}
+        />
+        <Stack.Screen name="AddNewJobScreen" component={AddNewJobScreen} />
+        <Stack.Screen
+          name="HostJobDetailScreen"
+          component={HostJobDetailScreen}
+        />
+        <Stack.Screen
+          name="HostJobRequestScreen"
+          component={HostJobRequestScreen}
+        />
+        <Stack.Screen name="HostPaymentScreen" component={HostPaymentScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

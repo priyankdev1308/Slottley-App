@@ -136,7 +136,11 @@ const HostJobRequestDetails = ({
                     </View>
                     <View style={styles.experienceRow}>
                         <View style={styles.experienceIcon}>
-                            <Text style={styles.experienceIconText}>✦</Text>
+                            <Image
+                                source={icons.qualified}
+                                resizeMode="contain"
+                                style={styles.experienceIconImage}
+                            />
                         </View>
                         <Text style={styles.metaText}>{REQUEST.applicant.experience}</Text>
                     </View>
@@ -217,14 +221,14 @@ const styles = StyleSheet.create({
     },
     jobTitle: {
         color: colors.darkGray232323,
-        fontSize: fontSize(18),
+        fontSize: fontSize(16),
         fontFamily: fonts.Lato700,
     },
     company: {
         marginTop: hp(7),
         color: colors.darkGray,
-        fontSize: fontSize(15),
-        fontFamily: fonts.Lato400,
+        fontSize: fontSize(12),
+        fontFamily: fonts.Lato500,
     },
     jobMetaRow: {
         flexDirection: "row",
@@ -239,22 +243,22 @@ const styles = StyleSheet.create({
         maxWidth: "48%",
     },
     metaIcon: {
-        width: wp(18),
-        height: wp(18),
+        width: wp(14),
+        height: wp(14),
         tintColor: colors.primary,
         marginRight: wp(7),
     },
     metaText: {
         color: colors.gray6E6E6E,
-        fontSize: fontSize(14),
-        fontFamily: fonts.Lato400,
+        fontSize: fontSize(12),
+        fontFamily: fonts.Lato500,
     },
     sectionTitle: {
         marginTop: hp(24),
         marginBottom: hp(12),
         color: colors.black,
-        fontSize: fontSize(18),
-        fontFamily: fonts.Lato700,
+        fontSize: fontSize(14),
+        fontFamily: fonts.Lato600,
     },
     applicantCard: {
         borderRadius: wp(12),
@@ -270,8 +274,8 @@ const styles = StyleSheet.create({
         paddingVertical: hp(14),
     },
     avatar: {
-        width: wp(50),
-        height: wp(50),
+        width: wp(45),
+        height: wp(45),
         borderRadius: wp(25),
         alignItems: "center",
         justifyContent: "center",
@@ -292,14 +296,12 @@ const styles = StyleSheet.create({
         fontFamily: fonts.Lato400,
     },
     chatButton: {
-        width: wp(42),
-        height: wp(42),
-        borderRadius: wp(21),
+        width: wp(30),
+        height: wp(30),
         justifyContent: "center",
         alignItems: "center",
-        backgroundColor: colors.primary,
     },
-    chatIcon: { width: wp(21), height: wp(21), tintColor: colors.white },
+    chatIcon: { width: wp(25), height: wp(25) },
     cardDivider: { height: 1, backgroundColor: colors.lightWhite },
     applicantMetaRow: {
         flexDirection: "row",
@@ -321,13 +323,12 @@ const styles = StyleSheet.create({
         borderRadius: wp(3),
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: colors.primary,
         marginRight: wp(8),
     },
-    experienceIconText: {
-        color: colors.white,
-        fontSize: fontSize(12),
-        lineHeight: fontSize(13),
+    experienceIconImage: {
+        width: wp(16),
+        height: wp(16),
+        tintColor: colors.primary,
     },
     aboutBlock: {
         paddingHorizontal: wp(18),
@@ -336,13 +337,13 @@ const styles = StyleSheet.create({
     },
     aboutTitle: {
         color: colors.primary,
-        fontSize: fontSize(15),
+        fontSize: fontSize(12),
         fontFamily: fonts.Lato700,
     },
     aboutText: {
         marginTop: hp(10),
         color: colors.darkGray,
-        fontSize: fontSize(14),
+        fontSize: fontSize(12),
         lineHeight: fontSize(20),
         fontFamily: fonts.Lato400,
     },
@@ -381,14 +382,14 @@ const styles = StyleSheet.create({
     },
     fileName: {
         color: colors.darkGray232323,
-        fontSize: fontSize(16),
+        fontSize: fontSize(14),
         fontFamily: fonts.Lato700,
     },
     fileType: {
         marginTop: hp(6),
         color: colors.subText,
-        fontSize: fontSize(14),
-        fontFamily: fonts.Lato400,
+        fontSize: fontSize(12),
+        fontFamily: fonts.Lato600,
     },
     footer: {
         flexDirection: "row",
@@ -413,12 +414,12 @@ const styles = StyleSheet.create({
     rejectButton: { borderColor: "#FFB8B8", backgroundColor: "#FFE8E8" },
     shortlistText: {
         color: colors.primary,
-        fontSize: fontSize(17),
+        fontSize: fontSize(16),
         fontFamily: fonts.Lato700,
     },
     rejectText: {
         color: "#FF3B3B",
-        fontSize: fontSize(17),
+        fontSize: fontSize(16),
         fontFamily: fonts.Lato700,
     },
 });

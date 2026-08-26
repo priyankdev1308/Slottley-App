@@ -45,6 +45,13 @@ export const capitalizeFirstLetter = (text = '') => {
   return text.charAt(0).toUpperCase() + text.slice(1);
 };
 
+export const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Hello, Good Morning';
+  if (hour < 17) return 'Hello, Good Afternoon';
+  return 'Hello, Good Evening';
+};
+
 export const resetStack = (name: string, params?: any) =>
   //@ts-ignore
   navigationRef.current?.dispatch(

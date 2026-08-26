@@ -92,6 +92,31 @@ export type AddNewPlaceScreenProps = NativeStackScreenProps<
   "AddNewPlaceScreen"
 >;
 
+export type HostPlaceDetailScreenProps = NativeStackScreenProps<
+  RootStackParamList,
+  "HostPlaceDetailScreen"
+>;
+
+export type AddNewJobScreenProps = NativeStackScreenProps<
+  RootStackParamList,
+  "AddNewJobScreen"
+>;
+
+export type HostJobDetailScreenProps = NativeStackScreenProps<
+  RootStackParamList,
+  "HostJobDetailScreen"
+>;
+
+export type HostJobRequestScreenProps = NativeStackScreenProps<
+  RootStackParamList,
+  "HostJobRequestScreen"
+>;
+
+export type HostPaymentScreenProps = NativeStackScreenProps<
+  RootStackParamList,
+  "HostPaymentScreen"
+>;
+
 export type ChatDetailScreenProps = NativeStackScreenProps<
   RootStackParamList,
   "ChatDetailScreen"

@@ -9,10 +9,16 @@ interface SocialButtonProps {
   label: string;
   icon: React.ReactNode;
   onPress: () => void;
+  disabled?: boolean;
 }
 
-const SocialButton = ({ label, icon, onPress }: SocialButtonProps) => (
-  <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={styles.button}>
+const SocialButton = ({ label, icon, onPress, disabled }: SocialButtonProps) => (
+  <TouchableOpacity
+    activeOpacity={0.85}
+    onPress={onPress}
+    disabled={disabled}
+    style={[styles.button, disabled && styles.buttonDisabled]}
+  >
     {icon}
     <Text style={styles.label}>{label}</Text>
   </TouchableOpacity>
@@ -32,6 +38,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.textPlaceHolderColor,
     gap: wp(8),
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   label: {
     color: colors.black,

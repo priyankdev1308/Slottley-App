@@ -19,10 +19,13 @@ import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp, isIos } from '../helpers/responsive';
 import { JobApplyScreenProps } from '../interface/screenTypes';
 
+const EXPERIENCE_OPTIONS = ['Fresher', '1 Year', '2 Years', '3 Years', '5 Years', '10+ Years'];
+
 const JobApplyScreen = ({ navigation }: JobApplyScreenProps) => {
   const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const [cvName, setCvName] = useState<string | null>(null);
-  const [experience, setExperience] = useState('02 year');
+  const [experience, setExperience] = useState('2 Years');
+  const [experienceOpen, setExperienceOpen] = useState(false);
   const [phone, setPhone] = useState('1258789522');
   const [message, setMessage] = useState('');
 
@@ -66,13 +69,45 @@ const JobApplyScreen = ({ navigation }: JobApplyScreenProps) => {
           </View>
 
           <Text style={styles.sectionLabel}>Experience (optional)</Text>
-          <TextInput
-            value={experience}
-            onChangeText={setExperience}
-            placeholder="e.g. 2 years"
-            placeholderTextColor={colors.placeHolder}
-            style={styles.input}
-          />
+          <View>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={styles.dropdownInput}
+              onPress={() => setExperienceOpen(v => !v)}
+            >
+              <Text style={styles.dropdownInputText}>{experience}</Text>
+              <Image
+                source={icons.downArrow}
+                style={[styles.dropdownChevron, experienceOpen && styles.dropdownChevronOpen]}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+
+            {experienceOpen && (
+              <View style={styles.dropdownMenu}>
+                {EXPERIENCE_OPTIONS.map(option => (
+                  <TouchableOpacity
+                    key={option}
+                    activeOpacity={0.8}
+                    style={styles.dropdownMenuItem}
+                    onPress={() => {
+                      setExperience(option);
+                      setExperienceOpen(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownMenuText,
+                        option === experience && styles.dropdownMenuTextActive,
+                      ]}
+                    >
+                      {option}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
 
           <Text style={styles.sectionLabel}>Contact phone (optional)</Text>
           <TextInput
@@ -209,6 +244,56 @@ const styles = StyleSheet.create({
     color: colors.black,
     fontSize: fontSize(14.5),
     fontFamily: fonts.Lato400,
+  },
+  dropdownInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    height: hp(54),
+    paddingHorizontal: wp(16),
+    borderRadius: wp(14),
+    backgroundColor: '#364C7108',
+    borderWidth: 1,
+    borderColor: '#364C710F',
+  },
+  dropdownInputText: {
+    color: colors.black,
+    fontSize: fontSize(14.5),
+    fontFamily: fonts.Lato400,
+  },
+  dropdownChevron: {
+    width: wp(14),
+    height: wp(14),
+    tintColor: colors.primary,
+  },
+  dropdownChevronOpen: {
+    transform: [{ rotate: '180deg' }],
+  },
+  dropdownMenu: {
+    marginTop: hp(6),
+    borderRadius: wp(14),
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: '#364C710F',
+    paddingVertical: hp(4),
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  dropdownMenuItem: {
+    paddingHorizontal: wp(16),
+    paddingVertical: hp(12),
+  },
+  dropdownMenuText: {
+    color: colors.black,
+    fontSize: fontSize(14.5),
+    fontFamily: fonts.Lato400,
+  },
+  dropdownMenuTextActive: {
+    color: colors.primary,
+    fontFamily: fonts.Lato700,
   },
   messageInput: {
     height: hp(120),

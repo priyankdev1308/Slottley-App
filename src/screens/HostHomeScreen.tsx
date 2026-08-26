@@ -17,6 +17,8 @@ import { images } from '../../assets/images';
 import { colors } from '../utils/colors';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp } from '../helpers/responsive';
+import { getGreeting } from '../helpers/globalFunctions';
+import { useProfileAvatarUrl } from '../hooks/useProfileAvatarUrl';
 import { MainTabScreenProps } from '../navigation/TabNav';
 
 interface DashboardStat {
@@ -33,7 +35,7 @@ const DASHBOARD_STATS: DashboardStat[] = [
   { key: 'earnings', icon: icons.totalEarning, value: '£4521', label: 'TOTAL EARNINGS' },
 ];
 
-interface MySpace {
+export interface MySpace {
   id: string;
   title: string;
   location: string;
@@ -41,11 +43,17 @@ interface MySpace {
   period: string;
   image: ImageSourcePropType;
   cqcRegistered?: boolean;
+  category: string;
+  categoryHint: string;
+  rating: string;
+  reviewCount: number;
+  status: 'Active' | 'Inactive';
+  description: string;
 }
 
 // TODO: replace with the signed-in host's real listings once this screen is
 // wired to a backend.
-const MY_SPACES: MySpace[] = [
+export const MY_SPACES: MySpace[] = [
   {
     id: 'm1',
     title: 'Luxury Beauty Room',
@@ -54,6 +62,13 @@ const MY_SPACES: MySpace[] = [
     period: 'day',
     image: images.dummy2,
     cqcRegistered: true,
+    category: 'Hair / Rent a Chair',
+    categoryHint: 'e.g. cutting, colouring, styling',
+    rating: '4.8',
+    reviewCount: 100,
+    status: 'Active',
+    description:
+      'A luxurious private beauty room perfect for hairstylists, beauticians, and wellness professionals. Modern setup with premium amenities in a prime location.',
   },
   {
     id: 'm2',
@@ -62,6 +77,13 @@ const MY_SPACES: MySpace[] = [
     price: '£85',
     period: 'week',
     image: images.dummy3,
+    category: 'Barber / Rent a Chair',
+    categoryHint: 'e.g. fades, beard trims, shaves',
+    rating: '4.6',
+    reviewCount: 62,
+    status: 'Active',
+    description:
+      'A sleek, modern barber setup in the heart of Manchester with premium chairs, mirrors, and clipper stations ready to go.',
   },
   {
     id: 'm3',
@@ -70,6 +92,13 @@ const MY_SPACES: MySpace[] = [
     price: '£105',
     period: 'month',
     image: images.dummy1,
+    category: 'Nails / Rent a Desk',
+    categoryHint: 'e.g. manicure, pedicure, gel',
+    rating: '4.9',
+    reviewCount: 41,
+    status: 'Inactive',
+    description:
+      'A bright, well-ventilated nail desk with UV lamps, storage, and a client seating area — ideal for nail technicians.',
   },
   {
     id: 'm4',
@@ -77,11 +106,20 @@ const MY_SPACES: MySpace[] = [
     location: 'London, UK',
     price: '£55',
     period: 'day',
+    category: 'Clinic / Rent a Room',
+    categoryHint: 'e.g. facials, injectables, consultations',
+    rating: '4.7',
+    reviewCount: 28,
+    status: 'Active',
+    description:
+      'A private, hygienic clinic room suited to aesthetics and wellness treatments, fully equipped with a treatment bed and sink.',
     image: images.dummy2,
   },
 ];
 
 const HostHomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
+  const avatarUrl = useProfileAvatarUrl();
+
   const handleAddSpace = () => {
     navigation.navigate('AddNewPlaceScreen');
   };
@@ -93,14 +131,14 @@ const HostHomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
         <View style={styles.headerTop}>
           <View style={styles.avatar}>
             <Image
-              source={icons.tabProfile}
-              style={styles.avatarIcon}
-              resizeMode="contain"
+              source={avatarUrl ? { uri: avatarUrl } : icons.tabProfile}
+              style={avatarUrl ? styles.avatarPhoto : styles.avatarIcon}
+              resizeMode={avatarUrl ? 'cover' : 'contain'}
             />
           </View>
 
           <View style={styles.greetingCol}>
-            <Text style={styles.greeting}>Hello Good Morning</Text>
+            <Text style={styles.greeting}>{getGreeting()}</Text>
             <Text style={styles.heading}>List Your Space. Start Earning.</Text>
           </View>
 
@@ -154,13 +192,13 @@ const HostHomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
               key={space.id}
               activeOpacity={0.9}
               style={styles.spaceCard}
-              onPress={() => navigation.navigate('PlaceDetailScreen', { spaceId: space.id })}
+              onPress={() => navigation.navigate('HostPlaceDetailScreen', { spaceId: space.id })}
             >
               <View style={styles.spaceImageFrame}>
                 <View style={styles.spaceImageWrap}>
                   <Image source={space.image} style={styles.spaceImage} resizeMode="cover" />
                   <View style={styles.activeBadge}>
-                    <Text style={styles.activeBadgeText}>Active</Text>
+                    <Text style={styles.activeBadgeText}>{space.status}</Text>
                   </View>
                 </View>
               </View>
@@ -197,7 +235,8 @@ const HostHomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
       </ScrollView>
 
       <TouchableOpacity activeOpacity={0.85} style={styles.fab} onPress={handleAddSpace}>
-        <Image source={icons.add} style={styles.fabIcon} resizeMode="contain" />
+        <Image source={icons.addRound} style={styles.fabIcon} resizeMode="contain" />
+        <Text style={styles.fabLabel}>Add Space</Text>
       </TouchableOpacity>
     </View>
   );
@@ -234,6 +273,11 @@ const styles = StyleSheet.create({
     width: wp(26),
     height: wp(26),
     tintColor: colors.white,
+  },
+  avatarPhoto: {
+    width: '100%',
+    height: '100%',
+    borderRadius: wp(26),
   },
   greetingCol: {
     flex: 1,
@@ -441,12 +485,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: wp(20),
     bottom: hp(24),
-    width: wp(70),
-    height: wp(70),
-    borderRadius: wp(35),
+    width: wp(145),
+    height: hp(55),
+    borderRadius: hp(28),
     backgroundColor: colors.primary,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: wp(8),
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -454,8 +500,12 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   fabIcon: {
-    width: wp(28),
-    height: wp(28),
-    tintColor: colors.white,
+    width: wp(22),
+    height: wp(22),
+  },
+  fabLabel: {
+    color: colors.white,
+    fontSize: fontSize(15),
+    fontFamily: fonts.Lato700,
   },
 });

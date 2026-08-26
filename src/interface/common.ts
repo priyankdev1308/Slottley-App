@@ -55,6 +55,11 @@ export type RootStackParamList = {
   AddNewCardScreen: { onAdd: (card: SavedCard) => void };
   NotificationScreen: undefined;
   AddNewPlaceScreen: undefined;
+  HostPlaceDetailScreen: { spaceId?: string } | undefined;
+  AddNewJobScreen: { jobId?: string } | undefined;
+  HostJobDetailScreen: { jobId?: string } | undefined;
+  HostJobRequestScreen: undefined;
+  HostPaymentScreen: { jobId?: string } | undefined;
   OrderDetailScreen: { saleId?: string } | undefined;
   TermsScreen: undefined;
   MainTabs:
