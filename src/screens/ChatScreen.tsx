@@ -39,9 +39,12 @@ const filters = ['All', 'Read', 'Unread'];
 const ChatScreen = ({ navigation }: MainTabScreenProps<'Chat'>) => {
   const [search, setSearch] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('All');
-  const chats = CHATS.filter(chat =>
-    chat.name.toLowerCase().includes(search.toLowerCase()),
-  );
+  const chats = CHATS.filter(chat => {
+    if (!chat.name.toLowerCase().includes(search.toLowerCase())) return false;
+    if (selectedFilter === 'Read') return chat.unread === 0;
+    if (selectedFilter === 'Unread') return chat.unread > 0;
+    return true;
+  });
 
   return (
     <SafeAreaView style={styles.flex} edges={['top']}>

@@ -204,7 +204,7 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
           setGoogleLoading(false);
           ToastAlert({
             title: 'No account found',
-            description: 'Please register first, then sign in with Google.',
+            description: 'Please register first using Google. Go to the **Register** tab and select “Sign in with Google” to create your account. Once registered, you can log in using Google.',
           });
           return;
         }

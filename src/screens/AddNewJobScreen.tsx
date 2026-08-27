@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import CustomButton from '../components/CustomButton';
+import DateField from '../components/DateField';
 import ToastAlert from '../components/ToastAlert';
 import { icons } from '../../assets/icons';
 import { colors } from '../utils/colors';
@@ -156,21 +157,14 @@ const AddNewJobScreen = ({ navigation, route }: AddNewJobScreenProps) => {
         <TextInput
           value={payAmount}
           onChangeText={setPayAmount}
+          placeholder="e.g. £45"
           placeholderTextColor={colors.placeHolder}
           keyboardType="numeric"
           style={styles.input}
         />
 
         <Text style={styles.sectionLabel}>Start Date</Text>
-        <View style={styles.dateInput}>
-          <TextInput
-            value={startDate}
-            onChangeText={setStartDate}
-            placeholderTextColor={colors.placeHolder}
-            style={styles.dateInputText}
-          />
-          <Image source={icons.calendar} style={styles.calendarIcon} resizeMode="contain" />
-        </View>
+        <DateField value={startDate} onChange={setStartDate} placeholder="Select start date" />
 
         <Text style={styles.sectionLabel}>Benefits (optional)</Text>
         <TextInput
@@ -314,29 +308,6 @@ const styles = StyleSheet.create({
     color: colors.black,
     fontSize: fontSize(14),
     fontFamily: fonts.Lato400,
-  },
-  dateInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    height: hp(54),
-    paddingHorizontal: wp(16),
-    borderRadius: wp(12),
-    backgroundColor: colors.textPlaceHolderColor,
-    borderWidth: 1,
-    borderColor: colors.fieldBorder,
-  },
-  dateInputText: {
-    flex: 1,
-    padding: 0,
-    color: colors.black,
-    fontSize: fontSize(14.5),
-    fontFamily: fonts.Lato400,
-  },
-  calendarIcon: {
-    width: wp(20),
-    height: wp(20),
-    tintColor: colors.primary,
   },
   postButton: {
     marginTop: hp(28),

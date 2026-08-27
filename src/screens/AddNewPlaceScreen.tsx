@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import CustomButton from '../components/CustomButton';
+import DateField from '../components/DateField';
 import ToastAlert from '../components/ToastAlert';
 import { CloseIcon } from '../components/icons/CardIcons';
 import { icons } from '../../assets/icons';
@@ -624,27 +625,11 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
         <View style={styles.dateRow}>
           <View style={styles.pricingField}>
             <Text style={styles.sectionLabel}>Start Date</Text>
-            <View style={styles.dateInput}>
-              <TextInput
-                value={startDate}
-                onChangeText={setStartDate}
-                placeholderTextColor={colors.placeHolder}
-                style={styles.dateInputText}
-              />
-              <Image source={icons.calendar} style={styles.calendarIcon} resizeMode="contain" />
-            </View>
+            <DateField value={startDate} onChange={setStartDate} placeholder="Select start date" />
           </View>
           <View style={styles.pricingField}>
             <Text style={styles.sectionLabel}>End Date</Text>
-            <View style={styles.dateInput}>
-              <TextInput
-                value={endDate}
-                onChangeText={setEndDate}
-                placeholderTextColor={colors.placeHolder}
-                style={styles.dateInputText}
-              />
-              <Image source={icons.calendar} style={styles.calendarIcon} resizeMode="contain" />
-            </View>
+            <DateField value={endDate} onChange={setEndDate} placeholder="Select end date" />
           </View>
         </View>
 
@@ -1044,29 +1029,6 @@ const styles = StyleSheet.create({
   dateRow: {
     flexDirection: 'row',
     gap: wp(14),
-  },
-  dateInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    height: hp(54),
-    paddingHorizontal: wp(16),
-    borderRadius: wp(14),
-    backgroundColor: colors.textPlaceHolderColor,
-    borderWidth: 1,
-    borderColor: colors.fieldBorder,
-  },
-  dateInputText: {
-    flex: 1,
-    padding: 0,
-    color: colors.subText,
-    fontSize: fontSize(14.5),
-    fontFamily: fonts.Lato400,
-  },
-  calendarIcon: {
-    width: wp(20),
-    height: wp(20),
-    tintColor: colors.primary,
   },
   instantBookingRow: {
     flexDirection: 'row',

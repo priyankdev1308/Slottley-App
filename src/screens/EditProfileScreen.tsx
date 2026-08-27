@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { launchCamera, launchImageLibrary, Asset } from 'react-native-image-picker';
@@ -19,7 +20,7 @@ import ToastAlert from '../components/ToastAlert';
 import { icons } from '../../assets/icons';
 import { colors } from '../utils/colors';
 import { fonts } from '../utils/fonts';
-import { fontSize, hp, wp } from '../helpers/responsive';
+import { fontSize, hp, isIos, wp } from '../helpers/responsive';
 import { supabase } from '../api/supabaseClient';
 import { EditProfileScreenProps } from '../interface/screenTypes';
 
@@ -187,95 +188,97 @@ const EditProfileScreen = ({ navigation }: EditProfileScreenProps) => {
         <View style={styles.backButton} />
       </View>
 
-      <ScrollView
-        style={styles.flex}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.avatarCard}>
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={styles.avatarWrap}
-            onPress={handleAvatarPress}
-          >
-            <Image
-              source={
-                pendingAsset?.uri
-                  ? { uri: pendingAsset.uri }
-                  : avatarUrl
-                    ? { uri: avatarUrl }
-                    : icons.tabProfile
-              }
-              style={pendingAsset?.uri || avatarUrl ? styles.avatarPhoto : styles.avatarIcon}
-              resizeMode={pendingAsset?.uri || avatarUrl ? 'cover' : 'contain'}
-            />
-            {saving && pendingAsset && (
-              <View style={styles.avatarLoadingOverlay}>
-                <ActivityIndicator size="small" color={colors.white} />
-              </View>
-            )}
-            <View style={styles.cameraBadge}>
+      <KeyboardAvoidingView style={styles.flex} behavior={isIos ? 'padding' : undefined}>
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.avatarCard}>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={styles.avatarWrap}
+              onPress={handleAvatarPress}
+            >
               <Image
-                source={icons.camera}
-                style={styles.cameraIcon}
-                resizeMode="contain"
+                source={
+                  pendingAsset?.uri
+                    ? { uri: pendingAsset.uri }
+                    : avatarUrl
+                      ? { uri: avatarUrl }
+                      : icons.tabProfile
+                }
+                style={pendingAsset?.uri || avatarUrl ? styles.avatarPhoto : styles.avatarIcon}
+                resizeMode={pendingAsset?.uri || avatarUrl ? 'cover' : 'contain'}
+              />
+              {saving && pendingAsset && (
+                <View style={styles.avatarLoadingOverlay}>
+                  <ActivityIndicator size="small" color={colors.white} />
+                </View>
+              )}
+              <View style={styles.cameraBadge}>
+                <Image
+                  source={icons.camera}
+                  style={styles.cameraIcon}
+                  resizeMode="contain"
+                />
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.nameRow}>
+            <View style={styles.halfField}>
+              <Text style={styles.sectionLabel}>First Name</Text>
+              <TextInput
+                value={firstName}
+                onChangeText={setFirstName}
+                placeholder="First name"
+                placeholderTextColor={colors.placeHolder}
+                style={styles.input}
               />
             </View>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.nameRow}>
-          <View style={styles.halfField}>
-            <Text style={styles.sectionLabel}>First Name</Text>
-            <TextInput
-              value={firstName}
-              onChangeText={setFirstName}
-              placeholder="First name"
-              placeholderTextColor={colors.placeHolder}
-              style={styles.input}
-            />
+            <View style={styles.halfField}>
+              <Text style={styles.sectionLabel}>Surname</Text>
+              <TextInput
+                value={surName}
+                onChangeText={setSurName}
+                placeholder="Surname"
+                placeholderTextColor={colors.placeHolder}
+                style={styles.input}
+              />
+            </View>
           </View>
-          <View style={styles.halfField}>
-            <Text style={styles.sectionLabel}>Surname</Text>
-            <TextInput
-              value={surName}
-              onChangeText={setSurName}
-              placeholder="Surname"
-              placeholderTextColor={colors.placeHolder}
-              style={styles.input}
-            />
-          </View>
+
+          <Text style={styles.sectionLabel}>Email</Text>
+          <TextInput
+            value={email}
+            editable={false}
+            placeholder="Enter your email"
+            placeholderTextColor={colors.placeHolder}
+            keyboardType="email-address"
+            style={[styles.input, styles.inputDisabled]}
+          />
+
+          <Text style={styles.sectionLabel}>Location</Text>
+          <TextInput
+            value={location}
+            onChangeText={setLocation}
+            placeholder="Enter your address"
+            placeholderTextColor={colors.placeHolder}
+            style={styles.input}
+          />
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <CustomButton
+            title="Save Changes"
+            onPress={handleSave}
+            loader={saving}
+            disable={saving || loading}
+          />
         </View>
-
-        <Text style={styles.sectionLabel}>Email</Text>
-        <TextInput
-          value={email}
-          editable={false}
-          placeholder="Enter your email"
-          placeholderTextColor={colors.placeHolder}
-          keyboardType="email-address"
-          style={[styles.input, styles.inputDisabled]}
-        />
-
-        <Text style={styles.sectionLabel}>Location</Text>
-        <TextInput
-          value={location}
-          onChangeText={setLocation}
-          placeholder="Enter your address"
-          placeholderTextColor={colors.placeHolder}
-          style={styles.input}
-        />
-      </ScrollView>
-
-      <View style={styles.footer}>
-        <CustomButton
-          title="Save Changes"
-          onPress={handleSave}
-          loader={saving}
-          disable={saving || loading}
-        />
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
