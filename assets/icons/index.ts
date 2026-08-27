@@ -74,4 +74,5 @@ export const icons = {
   addfriend: require('./ic_add-friend.png'),
   qualified: require('./ic_qualified.png'),
   addRound: require('./ic_add_round.png'),
+  bank: require('./ic_bank.png'),
 };

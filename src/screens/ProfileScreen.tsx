@@ -65,6 +65,7 @@ const OPTIONS: ProfileOption[] = [
   { key: 'wishlist', icon: icons.wishlist, title: 'My Wishlist' },
   { key: 'jobs', icon: icons.myJobApplications, title: 'My Job Applications' },
   { key: 'cards', icon: icons.cards, title: "My Cards" },
+  { key: 'bank', icon: icons.bank, title: "Bank Account" },
   { key: 'verified', icon: icons.verified, title: 'Get Verified' },
   { key: 'refer', icon: icons.refer, title: 'Refer & Earn £10' },
   { key: 'subscription', icon: icons.subscription, title: 'Subscription' },
@@ -208,6 +209,8 @@ const ProfileScreen = ({ navigation }: MainTabScreenProps<'Profile'>) => {
 
         {OPTIONS.filter(option => {
           if (option.key === 'subscription') return profile?.role === 'host';
+          if (option.key === 'bank') return profile?.role === 'host';
+          if (option.key === 'wishlist') return profile?.role === 'renter';
           if (option.key === 'password') return !profile?.login_type || profile.login_type === 'email';
           return true;
         }).map(option => {

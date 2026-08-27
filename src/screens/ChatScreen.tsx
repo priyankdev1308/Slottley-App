@@ -8,6 +8,7 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -33,10 +34,11 @@ const CHATS: ChatPreview[] = [
   { id: 'c5', name: 'Liam', message: 'Is Wi-Fi included with the rental?', time: '2:43 PM', unread: 0 },
   { id: 'c6', name: 'Michael', message: "I've sent my CV for the apprentice position.", time: '2:23 PM', unread: 0 },
 ];
+const filters = ['All', 'Read', 'Unread'];
 
 const ChatScreen = ({ navigation }: MainTabScreenProps<'Chat'>) => {
   const [search, setSearch] = useState('');
-
+  const [selectedFilter, setSelectedFilter] = useState('All');
   const chats = CHATS.filter(chat =>
     chat.name.toLowerCase().includes(search.toLowerCase()),
   );
@@ -68,7 +70,31 @@ const ChatScreen = ({ navigation }: MainTabScreenProps<'Chat'>) => {
             style={styles.searchInput}
           />
         </View>
+        <View style={styles.container}>
+          {filters.map((filter) => {
+            const isSelected = selectedFilter === filter;
 
+            return (
+              <Pressable
+                key={filter}
+                onPress={() => setSelectedFilter(filter)}
+                style={[
+                  styles.button,
+                  isSelected && styles.selectedButton,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.text,
+                    isSelected && styles.selectedText,
+                  ]}
+                >
+                  {filter}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
         {chats.map(chat => (
           <TouchableOpacity
             key={chat.id}
@@ -212,5 +238,43 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: fontSize(11),
     fontFamily: fonts.Lato500,
+  },
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 15,
+    paddingHorizontal: 0,
+    paddingVertical: 5,
+    backgroundColor: '#FBFAF7',
+  },
+
+  button: {
+    height: 35,
+    minWidth: 45,
+    paddingHorizontal: 24,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  selectedButton: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+
+  text: {
+    fontSize: fontSize(12),
+    fontFamily: fonts.Lato500,
+    fontWeight: '400',
+    color: colors.black,
+  },
+
+  selectedText: {
+    fontSize: fontSize(12),
+    fontFamily: fonts.Lato600,
+    color: colors.white,
   },
 });

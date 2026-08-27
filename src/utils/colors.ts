@@ -123,6 +123,7 @@ export const colors = {
   gray8F97A8: '#8F97A8',
   gray474747: '#474747',
   gray6E6E6E: '#6E6E6E',
+  gray606060: '#606060',
   grayA9ACB3: '#A9ACB3',
   gray333333: '#333333',
 };

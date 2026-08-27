@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
   statusBadge: {
     position: 'absolute',
     top: hp(14),
-    right: wp(14),
+    right: wp(34),
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: wp(12),
@@ -327,12 +327,12 @@ const styles = StyleSheet.create({
     width: wp(12),
     height: wp(12),
     marginLeft: wp(6),
-    tintColor: colors.white,
+    tintColor: '#DAA03A',
   },
   statusMenu: {
     position: 'absolute',
     top: hp(50),
-    right: wp(14),
+    right: wp(34),
     minWidth: wp(120),
     borderRadius: wp(14),
     backgroundColor: colors.white,
@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
     marginTop: hp(16),
     padding: wp(16),
     borderRadius: wp(14),
-    backgroundColor: colors.lightGrayF5F5F5,
+    backgroundColor: colors.primaryLight,
   },
   categoryTitle: {
     color: colors.black,
@@ -466,14 +466,14 @@ const styles = StyleSheet.create({
     width: wp(60),
   },
   amenityIcon: {
-    width: wp(24),
-    height: wp(24),
+    width: wp(20),
+    height: wp(20),
     marginBottom: hp(8),
   },
   amenityLabel: {
-    color: colors.darkGray,
-    fontSize: fontSize(11),
-    fontFamily: fonts.Lato400,
+    color: colors.black,
+    fontSize: fontSize(12),
+    fontFamily: fonts.Lato500,
     textAlign: 'center',
   },
   includedRow: {
@@ -563,9 +563,9 @@ const styles = StyleSheet.create({
   },
   reviewText: {
     color: colors.subText,
-    fontSize: fontSize(12.5),
+    fontSize: fontSize(14),
     lineHeight: fontSize(18),
-    fontFamily: fonts.Lato400,
+    fontFamily: fonts.Lato500,
   },
   footer: {
     flexDirection: 'row',
@@ -576,7 +576,7 @@ const styles = StyleSheet.create({
   },
   editButton: {
     flex: 1,
-    backgroundColor: colors.lightGrayF5F5F5,
+    backgroundColor: colors.primaryLight,
     borderWidth: 1,
     borderColor: colors.primary,
   },

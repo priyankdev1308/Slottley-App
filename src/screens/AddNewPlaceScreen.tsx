@@ -115,43 +115,109 @@ const CANCELLATION_OPTIONS: CancellationOption[] = [
 ];
 
 const DEFAULT_AMENITIES = ['Wi-Fi', 'Mirror', 'Music System', 'AC', 'Lights', 'Fan', 'Towels'];
+const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+interface PricingFieldProps {
+  label: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  enabled: boolean;
+  onToggle: (value: boolean) => void;
+}
+
+const PricingField = ({ label, value, onChangeText, enabled, onToggle }: PricingFieldProps) => (
+  <View style={styles.pricingField}>
+    <View style={styles.pricingFieldHeader}>
+      <Text style={styles.pricingFieldLabel}>{label}</Text>
+      <Switch
+        value={enabled}
+        onValueChange={onToggle}
+        trackColor={{ false: colors.EBEBEB, true: colors.primary }}
+        thumbColor={colors.white}
+      />
+    </View>
+    <TextInput
+      value={value}
+      onChangeText={onChangeText}
+      editable={enabled}
+      placeholder="Enter price"
+      placeholderTextColor={colors.placeHolder}
+      keyboardType="numeric"
+      style={[styles.input, !enabled && styles.inputDisabled]}
+    />
+  </View>
+);
 
 const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
   const [spaceType, setSpaceType] = useState('beauty');
   const [aestheticsRoom, setAestheticsRoom] = useState(true);
   const [cqcRegisteredOnly, setCqcRegisteredOnly] = useState(true);
   const [cancellationPolicy, setCancellationPolicy] = useState('nonrefundable');
+  const [availableDays, setAvailableDays] = useState<string[]>([]);
 
-  const [title, setTitle] = useState('Modern Barber Chair');
+  const [title, setTitle] = useState('');
   const [about, setAbout] = useState(
-    'A luxurious private beauty room perfect for hairstylists, beauticians, and wellness professionals. Modern setup with premium amenities in a prime location.',
+    '',
   );
-  const [businessName, setBusinessName] = useState('Modern Beauty Studio');
-  const [addressStreet, setAddressStreet] = useState('123 Beauty Street');
-  const [areaTown, setAreaTown] = useState('Shoreditch');
-  const [postCode, setPostCode] = useState('E1 6AN');
-  const [minBookingLength, setMinBookingLength] = useState('5 Days');
+  const [businessName, setBusinessName] = useState('');
+  const [addressStreet, setAddressStreet] = useState('');
+  const [areaTown, setAreaTown] = useState('');
+  const [postCode, setPostCode] = useState('');
+  const [minBookingLength, setMinBookingLength] = useState('7');
+  const [minBookingError, setMinBookingError] = useState('');
 
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>(['Music System']);
 
   const [includedInput, setIncludedInput] = useState('');
   const [includedItems, setIncludedItems] = useState<string[]>(['Shampoo', 'Tea & Coffee']);
 
-  const [hourlyPrice, setHourlyPrice] = useState('£12');
-  const [dailyPrice, setDailyPrice] = useState('£22');
-  const [weeklyPrice, setWeeklyPrice] = useState('£42');
-  const [monthlyPrice, setMonthlyPrice] = useState('£52');
+  const [hourlyPrice, setHourlyPrice] = useState('£');
+  const [dailyPrice, setDailyPrice] = useState('£');
+  const [weeklyPrice, setWeeklyPrice] = useState('£');
+  const [monthlyPrice, setMonthlyPrice] = useState('£');
+
+  const [hourlyEnabled, setHourlyEnabled] = useState(false);
+  const [dailyEnabled, setDailyEnabled] = useState(false);
+  const [weeklyEnabled, setWeeklyEnabled] = useState(false);
+  const [monthlyEnabled, setMonthlyEnabled] = useState(false);
 
   const [startDate, setStartDate] = useState('15/12/2026');
   const [endDate, setEndDate] = useState('17/12/2026');
 
-  const [instantBooking, setInstantBooking] = useState(true);
-  const [agreeTerms, setAgreeTerms] = useState(true);
+  const [instantBooking, setInstantBooking] = useState(false);
+  const [agreeTerms, setAgreeTerms] = useState(false);
 
   const toggleAmenity = (item: string) => {
     setSelectedAmenities(prev =>
       prev.includes(item) ? prev.filter(a => a !== item) : [...prev, item],
     );
+  };
+
+  const toggleDay = (day: string) => {
+    setAvailableDays(prev =>
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+    );
+  };
+
+  const getRequiredMinBookingDays = (weeklyEnabled: boolean, monthlyEnabled: boolean) => {
+    if (monthlyEnabled) return 60;
+    if (weeklyEnabled) return 7;
+    return 1;
+  };
+
+  const handleMinBookingChange = (text: string) => {
+    setMinBookingLength(text);
+
+    const numeric = parseInt(text, 10);
+    const requiredMin = getRequiredMinBookingDays(weeklyEnabled, monthlyEnabled);
+
+    if (!text.trim() || isNaN(numeric)) {
+      setMinBookingError('Please enter a valid number of days');
+    } else if (numeric < requiredMin) {
+      setMinBookingError(`Minimum booking must be at least ${requiredMin} days`);
+    } else {
+      setMinBookingError('');
+    }
   };
 
   const handleAddAmenity = () => {
@@ -173,14 +239,24 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
   };
 
   const handleAddPlace = () => {
-    ToastAlert({ title: 'Add Place', description: 'Coming soon.' });
+    const requiredMin = getRequiredMinBookingDays(weeklyEnabled, monthlyEnabled);
+    const numeric = parseInt(minBookingLength, 10);
+
+    if (isNaN(numeric) || numeric < requiredMin) {
+      setMinBookingError(`Minimum booking must be at least ${requiredMin} days`);
+      ToastAlert({ title: 'Invalid Minimum Booking', description: `Must be at least ${requiredMin} days.` });
+      return;
+    }
+
+    // ToastAlert({ title: 'Add Place', description: 'Coming soon.' });
+    navigation.goBack()
   };
 
   return (
     <SafeAreaView style={styles.flex} edges={['top']}>
       <StatusBar barStyle="dark-content" />
 
-      <View style={styles.header}>1
+      <View style={styles.header}>
         <TouchableOpacity
           activeOpacity={0.8}
           style={styles.backButton}
@@ -228,7 +304,11 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
                     key={item.key}
                     activeOpacity={0.85}
                     onPress={() => setSpaceType(item.key)}
-                    style={[styles.optionCard, isSelected && styles.optionCardSelected]}
+                    style={[
+                      styles.optionCard,
+                      isSelected && styles.optionCardSelected,
+                      item.key === 'all' && styles.optionCardCentered,
+                    ]}
                   >
                     <View style={styles.categoryRow}>
                       <View
@@ -237,7 +317,15 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
                           item.key === 'all' && styles.categoryTextColCentered,
                         ]}
                       >
-                        <Text style={styles.categoryTitle}>{item.title}</Text>
+                        <Text
+                          style={[
+                            styles.categoryTitle,
+                            item.key === 'all' && styles.categoryTitleCentered,
+                            !isSelected && styles.categoryTitleUnselected,
+                          ]}
+                        >
+                          {item.title}
+                        </Text>
                         {!!item.description && (
                           <Text style={styles.categoryDescription}>{item.description}</Text>
                         )}
@@ -261,7 +349,11 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
           >
             <View style={styles.categoryRow}>
               <View style={styles.categoryTextCol}>
-                <Text style={styles.categoryTitle}>Aesthetics Room</Text>
+                <Text
+                  style={[styles.categoryTitle, !aestheticsRoom && styles.categoryTitleUnselected]}
+                >
+                  Aesthetics Room
+                </Text>
                 <Text style={styles.categoryDescription}>
                   e.g. Botox, fillers, chemical peels, skin treatments
                 </Text>
@@ -387,14 +479,18 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
           style={styles.input}
         />
 
-        <Text style={styles.sectionLabel}>Minimum Booking Length</Text>
+        <Text style={styles.sectionLabel}>Minimum Booking Length (days)</Text>
         <TextInput
           value={minBookingLength}
-          onChangeText={setMinBookingLength}
-          placeholder="e.g. 5 Days"
+          onChangeText={handleMinBookingChange}
+          placeholder="e.g. 7"
           placeholderTextColor={colors.placeHolder}
-          style={styles.input}
+          keyboardType="numeric"
+          style={[styles.input, !!minBookingError && styles.inputError]}
         />
+        {!!minBookingError && (
+          <Text style={styles.errorText}>{minBookingError}</Text>
+        )}
 
         <Text style={styles.sectionLabel}>Amenities</Text>
         <View style={styles.amenityGrid}>
@@ -453,48 +549,77 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
 
         <Text style={styles.bigSectionTitle}>Pricing</Text>
         <View style={styles.pricingGrid}>
-          <View style={styles.pricingField}>
-            <Text style={styles.sectionLabel}>Hourly Pricing</Text>
-            <TextInput
-              value={hourlyPrice}
-              onChangeText={setHourlyPrice}
-              placeholderTextColor={colors.placeHolder}
-              keyboardType="numeric"
-              style={styles.input}
-            />
-          </View>
-          <View style={styles.pricingField}>
-            <Text style={styles.sectionLabel}>Daily Pricing</Text>
-            <TextInput
-              value={dailyPrice}
-              onChangeText={setDailyPrice}
-              placeholderTextColor={colors.placeHolder}
-              keyboardType="numeric"
-              style={styles.input}
-            />
-          </View>
-          <View style={styles.pricingField}>
-            <Text style={styles.sectionLabel}>Weekly Pricing</Text>
-            <TextInput
-              value={weeklyPrice}
-              onChangeText={setWeeklyPrice}
-              placeholderTextColor={colors.placeHolder}
-              keyboardType="numeric"
-              style={styles.input}
-            />
-          </View>
-          <View style={styles.pricingField}>
-            <Text style={styles.sectionLabel}>Monthly Pricing</Text>
-            <TextInput
-              value={monthlyPrice}
-              onChangeText={setMonthlyPrice}
-              placeholderTextColor={colors.placeHolder}
-              keyboardType="numeric"
-              style={styles.input}
-            />
-          </View>
+          <PricingField
+            label="Hourly Pricing"
+            value={hourlyPrice}
+            onChangeText={setHourlyPrice}
+            enabled={hourlyEnabled}
+            onToggle={setHourlyEnabled}
+          />
+          <PricingField
+            label="Daily Pricing"
+            value={dailyPrice}
+            onChangeText={setDailyPrice}
+            enabled={dailyEnabled}
+            onToggle={setDailyEnabled}
+          />
+          <PricingField
+            label="Weekly Pricing"
+            value={weeklyPrice}
+            onChangeText={setWeeklyPrice}
+            enabled={weeklyEnabled}
+            // onToggle={setWeeklyEnabled}
+            onToggle={(value) => {
+              setWeeklyEnabled(value);
+              const requiredMin = getRequiredMinBookingDays(value, weeklyEnabled);
+              const numeric = parseInt(minBookingLength, 10);
+              if (!isNaN(numeric) && numeric < requiredMin) {
+                setMinBookingError(`Minimum booking must be at least ${requiredMin} days`);
+              } else {
+                setMinBookingError('');
+              }
+            }}
+          />
+          <PricingField
+            label="Monthly Pricing"
+            value={monthlyPrice}
+            onChangeText={setMonthlyPrice}
+            enabled={monthlyEnabled}
+            // onToggle={setMonthlyEnabled}
+            onToggle={(value) => {
+              setMonthlyEnabled(value);
+              const requiredMin = getRequiredMinBookingDays(value, monthlyEnabled);
+              const numeric = parseInt(minBookingLength, 10);
+              if (!isNaN(numeric) && numeric < requiredMin) {
+                setMinBookingError(`Minimum booking must be at least ${requiredMin} days`);
+              } else {
+                setMinBookingError('');
+              }
+            }}
+          />
         </View>
-
+        {dailyEnabled && (
+          <View style={styles.dayPickerSection}>
+            <Text style={styles.sectionLabel}>Available Days</Text>
+            <View style={styles.dayPickerRow}>
+              {DAYS_OF_WEEK.map(day => {
+                const isSelected = availableDays.includes(day);
+                return (
+                  <TouchableOpacity
+                    key={day}
+                    activeOpacity={0.85}
+                    onPress={() => toggleDay(day)}
+                    style={[styles.dayChip, isSelected && styles.dayChipSelected]}
+                  >
+                    <Text style={[styles.dayChipText, isSelected && styles.dayChipTextSelected]}>
+                      {day}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        )}
         <Text style={styles.bigSectionTitle}>Availability</Text>
         <View style={styles.dateRow}>
           <View style={styles.pricingField}>
@@ -676,6 +801,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary10,
     borderColor: colors.primary90,
   },
+  optionCardCentered: {
+    justifyContent: 'center',
+  },
   categoryRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -691,7 +819,14 @@ const styles = StyleSheet.create({
   categoryTitle: {
     color: colors.black,
     fontSize: fontSize(14),
-    fontFamily: fonts.Lato500,
+    fontFamily: fonts.Lato400,
+  },
+  categoryTitleCentered: {
+    width: '100%',
+    textAlign: 'center',
+  },
+  categoryTitleUnselected: {
+    color: colors.gray606060,
   },
   categoryDescription: {
     marginTop: hp(4),
@@ -784,6 +919,11 @@ const styles = StyleSheet.create({
     color: colors.black,
     fontSize: fontSize(14),
     fontFamily: fonts.Lato500,
+  },
+  inputDisabled: {
+    backgroundColor: colors.EBEBEB,
+    borderColor: colors.EBEBEB,
+    color: colors.subText,
   },
   textArea: {
     height: hp(100),
@@ -889,6 +1029,18 @@ const styles = StyleSheet.create({
   pricingField: {
     width: '47%',
   },
+  pricingFieldHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: hp(20),
+    marginBottom: hp(10),
+  },
+  pricingFieldLabel: {
+    color: colors.black,
+    fontSize: fontSize(14),
+    fontFamily: fonts.Lato500,
+  },
   dateRow: {
     flexDirection: 'row',
     gap: wp(14),
@@ -907,7 +1059,7 @@ const styles = StyleSheet.create({
   dateInputText: {
     flex: 1,
     padding: 0,
-    color: colors.black,
+    color: colors.subText,
     fontSize: fontSize(14.5),
     fontFamily: fonts.Lato400,
   },
@@ -964,4 +1116,31 @@ const styles = StyleSheet.create({
     paddingTop: hp(10),
     paddingBottom: hp(16),
   },
+  inputError: {
+    borderColor: 'red',
+  },
+  errorText: {
+    marginTop: hp(6),
+    color: 'red',
+    fontSize: fontSize(12),
+    fontFamily: fonts.Lato400,
+  },
+  dayPickerSection: { marginTop: hp(16) },
+  dayPickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: wp(8) },
+  dayChip: {
+    width: wp(44),
+    height: wp(44),
+    borderRadius: wp(22),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.textPlaceHolderColor,
+    borderWidth: 1,
+    borderColor: colors.fieldBorder,
+  },
+  dayChipSelected: {
+    backgroundColor: colors.primary10,
+    borderColor: colors.primary90,
+  },
+  dayChipText: { color: colors.gray606060, fontSize: fontSize(13), fontFamily: fonts.Lato500 },
+  dayChipTextSelected: { color: colors.primary, fontFamily: fonts.Lato700 },
 });

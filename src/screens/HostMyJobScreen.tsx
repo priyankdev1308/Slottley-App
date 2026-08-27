@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: wp(20),
     bottom: hp(24),
-    width: wp(145),
+    width: wp(125),
     height: hp(55),
     borderRadius: hp(28),
     backgroundColor: colors.primary,

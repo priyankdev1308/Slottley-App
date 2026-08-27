@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
   },
   editButton: {
     flex: 1,
-    backgroundColor: colors.lightGrayF5F5F5,
+    backgroundColor: colors.primaryLight,
     borderWidth: 1,
     borderColor: colors.primary,
   },
