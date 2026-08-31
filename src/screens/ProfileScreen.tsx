@@ -17,6 +17,7 @@ import { icons } from '../../assets/icons';
 import ConfirmModal from '../components/ConfirmModal';
 import ToastAlert from '../components/ToastAlert';
 import { colors } from '../utils/colors';
+import { headerShadow } from '../utils/shadows';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp } from '../helpers/responsive';
 import { supabase } from '../api/supabaseClient';
@@ -161,6 +162,7 @@ const ProfileScreen = ({ navigation }: MainTabScreenProps<'Profile'>) => {
       <StatusBar barStyle="dark-content" />
 
       <View style={styles.header}>
+        <View style={styles.headerShadowStrip} />
         <Text style={styles.headerTitle}>My Profile</Text>
       </View>
 
@@ -295,6 +297,18 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     paddingVertical: hp(14),
+    backgroundColor: colors.screenBgColor,
+    height: hp(64),
+    position: 'relative',
+  },
+  headerShadowStrip: {
+    position: 'absolute',
+    bottom: -8,          // sits just below the header
+    left: 0,
+    right: 0,
+    height: 8,
+    backgroundColor: colors.screenBgColor,
+    ...headerShadow,
   },
   headerTitle: {
     color: colors.black,

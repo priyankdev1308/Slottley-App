@@ -16,6 +16,7 @@ import { fontSize, hp, wp } from "../helpers/responsive";
 import { HostJobRequestDetailsScreenProps } from "../interface/screenTypes";
 import { colors } from "../utils/colors";
 import { fonts } from "../utils/fonts";
+import { headerShadow } from "../utils/shadows";
 
 // Mock data — replace with the selected job request once the host jobs API is wired.
 const REQUEST = {
@@ -69,6 +70,7 @@ const HostJobRequestDetails = ({
             <StatusBar barStyle="dark-content" />
 
             <View style={styles.header}>
+                <View style={styles.headerShadowStrip} />
                 <TouchableOpacity
                     activeOpacity={0.8}
                     accessibilityLabel="Go back"
@@ -195,7 +197,18 @@ const styles = StyleSheet.create({
         justifyContent: "space-between",
         paddingHorizontal: wp(20),
         paddingVertical: hp(18),
-        backgroundColor: colors.white,
+        backgroundColor: colors.screenBgColor,
+        height: hp(64),
+        position: 'relative',
+    },
+    headerShadowStrip: {
+        position: 'absolute',
+        bottom: -8,          // sits just below the header
+        left: 0,
+        right: 0,
+        height: 8,
+        backgroundColor: colors.screenBgColor,
+        ...headerShadow,
     },
     backButton: { width: wp(32), height: wp(32), justifyContent: "center" },
     backIcon: { width: wp(32), height: wp(32), tintColor: colors.primary },

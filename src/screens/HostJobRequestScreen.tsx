@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { icons } from '../../assets/icons';
 import { colors } from '../utils/colors';
+import { headerShadow } from '../utils/shadows';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp } from '../helpers/responsive';
 import { HostJobRequestScreenProps } from '../interface/screenTypes';
@@ -45,6 +46,7 @@ const HostJobRequestScreen = ({ navigation }: HostJobRequestScreenProps) => {
       <StatusBar barStyle="dark-content" />
 
       <View style={styles.header}>
+        <View style={styles.headerShadowStrip} />
         <TouchableOpacity
           activeOpacity={0.8}
           style={styles.backButton}
@@ -164,6 +166,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: wp(20),
     paddingVertical: hp(14),
+    backgroundColor: colors.screenBgColor,
+    height: hp(64),
+    position: 'relative',
+  },
+  headerShadowStrip: {
+    position: 'absolute',
+    bottom: -8,          // sits just below the header
+    left: 0,
+    right: 0,
+    height: 8,
+    backgroundColor: colors.screenBgColor,
+    ...headerShadow,
   },
   backButton: {
     width: wp(32),
@@ -183,7 +197,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: wp(20),
-    paddingTop: hp(10),
+    paddingTop: hp(20),
     paddingBottom: hp(20),
   },
   card: {

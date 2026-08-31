@@ -124,6 +124,28 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
       return;
     }
 
+    const trimmedReferralCode = referralCode.trim();
+    if (trimmedReferralCode) {
+      setSignUpLoading(true);
+      const { data: codeExists, error: codeCheckError } = await supabase.rpc(
+        'referral_code_exists',
+        { code: trimmedReferralCode },
+      );
+      setSignUpLoading(false);
+
+      if (codeCheckError) {
+        ToastAlert({ title: 'Could not verify referral code', description: codeCheckError.message });
+        return;
+      }
+      if (!codeExists) {
+        ToastAlert({
+          title: 'Invalid referral code',
+          description: 'That referral code doesn’t exist. Please enter a valid code or leave it blank.',
+        });
+        return;
+      }
+    }
+
     setSignUpLoading(true);
     const { data, error } = await supabase.auth.signUp({
       email: registerEmail.trim(),
@@ -222,8 +244,25 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
         return;
       }
 
-      // Register tab — commit whichever role is currently selected,
-      // whether this identity is brand new or a previously-abandoned one.
+      // Register tab. A role already set here means this Google identity
+      // already completed registration in an earlier session (as either
+      // renter or host) — a fresh registration must not silently flip
+      // that role, so block it instead of overwriting.
+      if (profile?.role) {
+        await supabase.auth.signOut();
+        await signOutGoogle();
+        setGoogleLoading(false);
+        ToastAlert({
+          title: 'Account already exists',
+          description: `This Google account is already registered as a ${profile.role === 'host' ? 'Host' : 'Renter'
+            }. Please use Sign In instead.`,
+        });
+        return;
+      }
+
+      // Otherwise commit whichever role is currently selected — this
+      // identity is either brand new or a previously-abandoned Sign In
+      // tab attempt that never actually finished registering.
       const { error: updateError } = await supabase
         .from('users')
         .update({ role, login_type: 'google', ...nameFallback })

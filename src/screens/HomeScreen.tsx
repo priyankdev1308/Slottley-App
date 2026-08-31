@@ -16,6 +16,7 @@ import SpaceCard from '../components/SpaceCard';
 import CqcInfoModal from '../components/CqcInfoModal';
 import { icons } from '../../assets/icons';
 import { colors } from '../utils/colors';
+import { headerShadow } from '../utils/shadows';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp } from '../helpers/responsive';
 import { supabase } from '../api/supabaseClient';

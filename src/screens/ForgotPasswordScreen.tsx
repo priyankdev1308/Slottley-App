@@ -45,7 +45,7 @@ const ForgotPasswordScreen = ({ navigation }: ForgotPasswordScreenProps) => {
 
     Alert.alert(
       'Check your email',
-      "We've sent you a Forgot Password email. Please check your inbox to reset your password.",
+      `We've sent a password reset email to ${email.trim()}. Please check your inbox to reset your password.`,
       [
         {
           text: 'OK',

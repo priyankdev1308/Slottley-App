@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import CustomButton from '../components/CustomButton';
 import { icons } from '../../assets/icons';
 import { colors } from '../utils/colors';
+import { headerShadow } from '../utils/shadows';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp } from '../helpers/responsive';
 import { MainTabScreenProps } from '../navigation/TabNav';
@@ -87,6 +88,7 @@ const JobScreen = ({ navigation }: MainTabScreenProps<'Job'>) => {
       <StatusBar barStyle="dark-content" />
 
       <View style={styles.header}>
+        <View style={styles.headerShadowStrip} />
         <Text style={styles.headerTitle}>Jobs</Text>
       </View>
 
@@ -179,12 +181,23 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     paddingVertical: hp(14),
+    backgroundColor: colors.screenBgColor,
+    height: hp(64),
+    position: 'relative',
+  },
+  headerShadowStrip: {
+    position: 'absolute',
+    bottom: -8,          // sits just below the header
+    left: 0,
+    right: 0,
+    height: 8,
+    backgroundColor: colors.screenBgColor,
+    ...headerShadow,
   },
   headerTitle: {
     color: colors.black,
     fontSize: fontSize(20),
     fontFamily: fonts.Lato600,
-    fontWeight: 600
   },
   scrollContent: {
     paddingHorizontal: wp(20),

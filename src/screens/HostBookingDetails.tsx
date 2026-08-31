@@ -17,6 +17,7 @@ import { images } from "../../assets/images";
 import { fontSize, hp, wp } from "../helpers/responsive";
 import { HostBookingDetailsScreenProps } from "../interface/screenTypes";
 import { colors } from "../utils/colors";
+import { headerShadow } from "../utils/shadows";
 import { fonts } from "../utils/fonts";
 
 const BOOKING = {
@@ -70,6 +71,7 @@ const HostBookingDetails = ({ navigation }: HostBookingDetailsScreenProps) => {
       <StatusBar barStyle="dark-content" />
 
       <View style={styles.header}>
+        <View style={styles.headerShadowStrip} />
         <TouchableOpacity
           activeOpacity={0.8}
           accessibilityLabel="Go back"
@@ -182,6 +184,18 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: wp(20),
     paddingVertical: hp(14),
+    backgroundColor: colors.screenBgColor,
+    height: hp(64),
+    position: 'relative',
+  },
+  headerShadowStrip: {
+    position: 'absolute',
+    bottom: -8,          // sits just below the header
+    left: 0,
+    right: 0,
+    height: 8,
+    backgroundColor: colors.screenBgColor,
+    ...headerShadow,
   },
   backButton: { width: wp(32), height: wp(32), justifyContent: "center" },
   backIcon: { width: wp(32), height: wp(32), tintColor: colors.primary },
@@ -192,7 +206,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: wp(20),
-    paddingTop: hp(22),
+    paddingTop: hp(20),
     paddingBottom: hp(28),
   },
   bookingCard: {

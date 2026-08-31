@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { icons } from '../../assets/icons';
 import { images } from '../../assets/images';
 import { colors } from '../utils/colors';
+import { headerShadow } from '../utils/shadows';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp } from '../helpers/responsive';
 import { getGreeting } from '../helpers/globalFunctions';

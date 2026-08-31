@@ -15,10 +15,20 @@ import { icons } from "../../assets/icons";
 import { fontSize, hp, wp } from "../helpers/responsive";
 import { SubscriptionScreenProps } from "../interface/screenTypes";
 import { colors } from "../utils/colors";
+import { headerShadow } from "../utils/shadows";
 import { fonts } from "../utils/fonts";
 import CustomButton from "../components/CustomButton";
 
 type PlanId = "solo" | "enhance" | "pro";
+
+// Each plan's feature lines run to a different length, so the block is
+// given a matching width to keep it visually tight instead of a fixed
+// width that either wraps Pro's longer lines or looks too wide for Solo.
+const FEATURES_WIDTH: Record<PlanId, `${number}%`> = {
+  solo: "52%",
+  enhance: "58%",
+  pro: "78%",
+};
 
 type Plan = {
   id: PlanId;
@@ -90,6 +100,7 @@ const SubscriptionScreen = ({ navigation }: SubscriptionScreenProps) => {
       <StatusBar barStyle="dark-content" />
 
       <View style={styles.header}>
+        <View style={styles.headerShadowStrip} />
         <TouchableOpacity
           activeOpacity={0.8}
           accessibilityLabel="Go back"
@@ -124,7 +135,7 @@ const SubscriptionScreen = ({ navigation }: SubscriptionScreenProps) => {
           Unlock full access to all features and insights
         </Text>
 
-        <View style={styles.features}>
+        <View style={[styles.features, { width: FEATURES_WIDTH[selectedPlanId] }]}>
           {selectedPlan.features.map((feature) => (
             <View key={feature} style={styles.featureRow}>
               <Image
@@ -206,6 +217,18 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: wp(20),
     paddingVertical: hp(14),
+    backgroundColor: colors.screenBgColor,
+    height: hp(64),
+    position: 'relative',
+  },
+  headerShadowStrip: {
+    position: 'absolute',
+    bottom: -8,          // sits just below the header
+    left: 0,
+    right: 0,
+    height: 8,
+    backgroundColor: colors.screenBgColor,
+    ...headerShadow,
   },
   backButton: { width: wp(32), height: wp(32), justifyContent: "center" },
   backIcon: { width: wp(32), height: wp(32), tintColor: colors.primary },
@@ -237,20 +260,20 @@ const styles = StyleSheet.create({
   },
   features: {
     alignSelf: "center",
-    width: "82%",
-    marginTop: hp(20),
-    rowGap: hp(18),
+    marginTop: hp(12),
+    rowGap: hp(10),
   },
   featureRow: { flexDirection: "row", alignItems: "center" },
   checkIcon: {
     width: wp(24),
     height: wp(24),
-    marginRight: wp(14),
+    marginRight: wp(10),
   },
   featureText: {
     flex: 1,
     color: colors.darkGray,
     fontSize: fontSize(14),
+    lineHeight: fontSize(17),
     fontFamily: fonts.Lato500,
   },
   plans: { marginTop: hp(30), rowGap: hp(12) },
