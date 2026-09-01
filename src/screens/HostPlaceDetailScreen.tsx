@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,9 @@ import {
   StatusBar,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
   Alert,
+  ImageSourcePropType,
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
@@ -15,69 +17,134 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import CustomButton from '../components/CustomButton';
 import ReadMoreText from '../components/ReadMoreText';
+import ToastAlert from '../components/ToastAlert';
 import { icons } from '../../assets/icons';
 import { colors } from '../utils/colors';
 import { headerShadow } from '../utils/shadows';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, screenWidth, wp } from '../helpers/responsive';
 import { HostPlaceDetailScreenProps } from '../interface/screenTypes';
-import { MY_SPACES } from './HostHomeScreen';
+import { supabase } from '../api/supabaseClient';
+import { MySpace, PLACE_IMAGE_BUCKET, fetchPlaceById } from '../api/places';
 
-const AMENITIES = [
-  { key: 'wifi', label: 'Wi-Fi', icon: icons.wifi },
-  { key: 'mirror', label: 'Mirror', icon: icons.mirror },
-  { key: 'music', label: 'Music System', icon: icons.music },
-  { key: 'light', label: 'Natural Light', icon: icons.light },
-  { key: 'fan', label: 'Fan & AC', icon: icons.fan },
-];
-
-const INCLUDED = ['Shampoo', 'Electricity', 'Use of Equipment', 'Towels', 'Tea & Coffee'];
-
-const REVIEWS = [
-  {
-    id: 'r1',
-    name: 'David Joseph',
-    time: '3h',
-    rating: 4,
-    text: 'Lovely space with everything I needed. The room was clean, comfortable and well equipped.',
-  },
-  {
-    id: 'r2',
-    name: 'Emily Johnson',
-    time: '3h',
-    rating: 3,
-    text: 'Great location and a professional setup. Would definitely book this space again.',
-  },
-];
-
-const Stars = ({ count }: { count: number }) => (
-  <View style={styles.starsRow}>
-    {Array.from({ length: count }).map((_, i) => (
-      <Image key={i} source={icons.star} style={styles.starIcon} resizeMode="contain" />
-    ))}
-  </View>
-);
+const AMENITY_ICONS: Record<string, ImageSourcePropType> = {
+  'Wi-Fi': icons.wifi,
+  Mirror: icons.mirror,
+  'Music System': icons.music,
+  AC: icons.fan,
+  Lights: icons.light,
+  Fan: icons.fan,
+  Towels: icons.checkGreen,
+};
 
 const HostPlaceDetailScreen = ({ navigation, route }: HostPlaceDetailScreenProps) => {
-  const space = MY_SPACES.find(s => s.id === route.params?.spaceId) ?? MY_SPACES[0];
+  const spaceId = route.params?.spaceId;
 
+  const [space, setSpace] = useState<MySpace | null>(null);
+  const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
-  const [status, setStatus] = useState(space.status);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
-  const gallery = [space.image, space.image, space.image];
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      if (!spaceId) {
+        setLoading(false);
+        return;
+      }
+      const result = await fetchPlaceById(spaceId);
+      if (cancelled) return;
+      setSpace(result);
+      setLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [spaceId]);
+
+  const gallery = space?.gallery ?? [];
 
   const onGalleryScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const index = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
     setActiveImage(index);
   };
 
+  const handleStatusChange = async (option: 'Active' | 'Inactive') => {
+    setStatusMenuOpen(false);
+    if (!space || option === space.status) return;
+
+    setUpdatingStatus(true);
+    const { error } = await supabase.from('places').update({ status: option }).eq('id', space.id);
+    setUpdatingStatus(false);
+
+    if (error) {
+      ToastAlert({ title: 'Could not update status', description: error.message });
+      return;
+    }
+    setSpace(prev => (prev ? { ...prev, status: option } : prev));
+  };
+
   const handleDelete = () => {
+    if (!space) return;
     Alert.alert('Delete Space', `Are you sure you want to delete "${space.title}"?`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => navigation.goBack() },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          setDeleting(true);
+          if (space.imagePaths.length > 0) {
+            await supabase.storage.from(PLACE_IMAGE_BUCKET).remove(space.imagePaths);
+          }
+          const { error } = await supabase.from('places').delete().eq('id', space.id);
+          setDeleting(false);
+
+          if (error) {
+            ToastAlert({ title: 'Could not delete space', description: error.message });
+            return;
+          }
+          navigation.goBack();
+        },
+      },
     ]);
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.flex} edges={['top']}>
+        <StatusBar barStyle="dark-content" />
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="small" color={colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!space) {
+    return (
+      <SafeAreaView style={styles.flex} edges={['top']}>
+        <StatusBar barStyle="dark-content" />
+        <View style={styles.header}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Image source={icons.back} style={styles.backIcon} resizeMode="contain" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Place Detail</Text>
+          <View style={styles.backButton} />
+        </View>
+        <View style={styles.loadingWrap}>
+          <Text style={styles.emptyText}>This space could not be found.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.flex} edges={['top']}>
@@ -114,11 +181,18 @@ const HostPlaceDetailScreen = ({ navigation, route }: HostPlaceDetailScreenProps
           <TouchableOpacity
             activeOpacity={0.85}
             style={styles.statusBadge}
+            disabled={updatingStatus}
             onPress={() => setStatusMenuOpen(v => !v)}
           >
             <View style={styles.statusDot} />
-            <Text style={styles.statusBadgeText}>{status}</Text>
-            <Image source={icons.downArrow} style={styles.statusChevron} resizeMode="contain" />
+            {updatingStatus ? (
+              <ActivityIndicator size="small" color={colors.white} />
+            ) : (
+              <>
+                <Text style={styles.statusBadgeText}>{space.status}</Text>
+                <Image source={icons.downArrow} style={styles.statusChevron} resizeMode="contain" />
+              </>
+            )}
           </TouchableOpacity>
 
           {statusMenuOpen && (
@@ -128,10 +202,7 @@ const HostPlaceDetailScreen = ({ navigation, route }: HostPlaceDetailScreenProps
                   key={option}
                   activeOpacity={0.8}
                   style={styles.statusMenuItem}
-                  onPress={() => {
-                    setStatus(option);
-                    setStatusMenuOpen(false);
-                  }}
+                  onPress={() => handleStatusChange(option)}
                 >
                   <Text style={styles.statusMenuText}>{option}</Text>
                 </TouchableOpacity>
@@ -187,59 +258,45 @@ const HostPlaceDetailScreen = ({ navigation, route }: HostPlaceDetailScreenProps
           <View style={styles.divider} />
 
           <Text style={styles.sectionLabel}>Amenities</Text>
-          <View style={styles.amenitiesRow}>
-            {AMENITIES.map(item => (
-              <View key={item.key} style={styles.amenityItem}>
-                <Image source={item.icon} style={styles.amenityIcon} resizeMode="contain" />
-                <Text style={styles.amenityLabel}>{item.label}</Text>
-              </View>
-            ))}
-          </View>
+          {space.amenities.length > 0 ? (
+            <View style={styles.amenitiesRow}>
+              {space.amenities.map(label => (
+                <View key={label} style={styles.amenityItem}>
+                  <Image
+                    source={AMENITY_ICONS[label] ?? icons.checkGreen}
+                    style={styles.amenityIcon}
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.amenityLabel}>{label}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.emptyText}>No amenities added.</Text>
+          )}
 
           <View style={styles.divider} />
 
           <Text style={styles.sectionLabel}>What’s Include</Text>
-          <View style={styles.includedRow}>
-            {INCLUDED.map(item => (
-              <View key={item} style={styles.includedChip}>
-                <Image source={icons.checkGreen} style={styles.includedIcon} resizeMode="contain" />
-                <Text style={styles.includedLabel}>{item}</Text>
-              </View>
-            ))}
-          </View>
+          {space.includedItems.length > 0 ? (
+            <View style={styles.includedRow}>
+              {space.includedItems.map(item => (
+                <View key={item} style={styles.includedChip}>
+                  <Image source={icons.checkGreen} style={styles.includedIcon} resizeMode="contain" />
+                  <Text style={styles.includedLabel}>{item}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.emptyText}>Nothing added yet.</Text>
+          )}
 
           <View style={styles.divider} />
 
           <View style={styles.reviewsHeader}>
             <Text style={styles.sectionLabel}>Reviews</Text>
-            <TouchableOpacity activeOpacity={0.8} style={styles.viewAllRow}>
-              <Text style={styles.viewAll}>View All</Text>
-              <Image source={icons.arrow} style={styles.viewAllArrow} resizeMode="contain" />
-            </TouchableOpacity>
           </View>
-
-          {REVIEWS.map((review, index) => (
-            <View key={review.id}>
-              <View style={styles.reviewRow}>
-                <View style={styles.reviewAvatar}>
-                  <Image
-                    source={icons.tabProfile}
-                    style={styles.reviewAvatarIcon}
-                    resizeMode="contain"
-                  />
-                </View>
-                <View style={styles.reviewTextCol}>
-                  <View style={styles.reviewNameRow}>
-                    <Text style={styles.reviewName}>{review.name}</Text>
-                    <Text style={styles.reviewTime}>{review.time}</Text>
-                  </View>
-                  <Stars count={review.rating} />
-                  <Text style={styles.reviewText}>{review.text}</Text>
-                </View>
-              </View>
-              {index < REVIEWS.length - 1 && <View style={styles.divider} />}
-            </View>
-          ))}
+          <Text style={styles.emptyText}>No reviews yet.</Text>
         </View>
       </ScrollView>
 
@@ -267,6 +324,16 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
     backgroundColor: colors.screenBgColor,
+  },
+  loadingWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    color: colors.subText,
+    fontSize: fontSize(13.5),
+    fontFamily: fonts.Lato400,
   },
   header: {
     flexDirection: 'row',

@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { launchCamera, launchImageLibrary, Asset } from 'react-native-image-picker';
 
 import CustomButton from '../components/CustomButton';
+import GooglePlaceField from '../components/GooglePlaceField';
 import ToastAlert from '../components/ToastAlert';
 import { icons } from '../../assets/icons';
 import { colors } from '../utils/colors';
@@ -36,8 +37,11 @@ const EditProfileScreen = ({ navigation }: EditProfileScreenProps) => {
   const [surName, setSurName] = useState('');
   const [email, setEmail] = useState('');
   const [location, setLocation] = useState('');
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
   const [profileImagePath, setProfileImagePath] = useState<string | null>(null);
   const [pendingAsset, setPendingAsset] = useState<Asset | null>(null);
+  const [avatarPreviewLoading, setAvatarPreviewLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,7 +55,7 @@ const EditProfileScreen = ({ navigation }: EditProfileScreenProps) => {
 
       const { data, error } = await supabase
         .from('users')
-        .select('first_name, sur_name, location, profile_image')
+        .select('first_name, sur_name, location, latitude, longitude, profile_image')
         .eq('id', authData.user.id)
         .single();
 
@@ -64,6 +68,8 @@ const EditProfileScreen = ({ navigation }: EditProfileScreenProps) => {
         setFirstName(data.first_name ?? '');
         setSurName(data.sur_name ?? '');
         setLocation(data.location ?? '');
+        setLatitude(data.latitude ?? null);
+        setLongitude(data.longitude ?? null);
         setProfileImagePath(data.profile_image ?? null);
       }
       setLoading(false);
@@ -121,7 +127,10 @@ const EditProfileScreen = ({ navigation }: EditProfileScreenProps) => {
         return;
       }
       const asset = response.assets?.[0];
-      if (asset) setPendingAsset(asset);
+      if (asset) {
+        setAvatarPreviewLoading(true);
+        setPendingAsset(asset);
+      }
     });
   };
 
@@ -158,6 +167,8 @@ const EditProfileScreen = ({ navigation }: EditProfileScreenProps) => {
         first_name: firstName.trim(),
         sur_name: surName.trim() || null,
         location: location.trim() || null,
+        latitude,
+        longitude,
         profile_image: profileImage,
       })
       .eq('id', userId);
@@ -213,8 +224,10 @@ const EditProfileScreen = ({ navigation }: EditProfileScreenProps) => {
                 }
                 style={pendingAsset?.uri || avatarUrl ? styles.avatarPhoto : styles.avatarIcon}
                 resizeMode={pendingAsset?.uri || avatarUrl ? 'cover' : 'contain'}
+                onLoadEnd={() => setAvatarPreviewLoading(false)}
+                onError={() => setAvatarPreviewLoading(false)}
               />
-              {saving && pendingAsset && (
+              {(avatarPreviewLoading || (saving && pendingAsset)) && (
                 <View style={styles.avatarLoadingOverlay}>
                   <ActivityIndicator size="small" color={colors.white} />
                 </View>
@@ -265,12 +278,14 @@ const EditProfileScreen = ({ navigation }: EditProfileScreenProps) => {
           />
 
           <Text style={styles.sectionLabel}>Location</Text>
-          <TextInput
+          <GooglePlaceField
             value={location}
-            onChangeText={setLocation}
-            placeholder="Enter your address"
-            placeholderTextColor={colors.placeHolder}
-            style={styles.input}
+            onSelect={result => {
+              setLocation(result.formattedAddress);
+              setLatitude(result.latitude);
+              setLongitude(result.longitude);
+            }}
+            placeholder="Search your address"
           />
         </ScrollView>
 

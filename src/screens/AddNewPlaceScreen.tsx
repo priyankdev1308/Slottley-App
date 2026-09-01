@@ -9,11 +9,14 @@ import {
   TextInput,
   Switch,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { launchCamera, launchImageLibrary, Asset } from 'react-native-image-picker';
 
 import CustomButton from '../components/CustomButton';
 import DateField from '../components/DateField';
+import GooglePlaceField from '../components/GooglePlaceField';
 import ToastAlert from '../components/ToastAlert';
 import { CloseIcon } from '../components/icons/CardIcons';
 import { icons } from '../../assets/icons';
@@ -21,7 +24,31 @@ import { colors } from '../utils/colors';
 import { headerShadow } from '../utils/shadows';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp } from '../helpers/responsive';
+import { supabase } from '../api/supabaseClient';
+import { PLACE_CATEGORIES, PlaceCategory } from '../utils/placeCategories';
 import { AddNewPlaceScreenProps } from '../interface/screenTypes';
+
+const PLACE_IMAGE_BUCKET = 'place_images';
+
+// UI photo-slot keys vs. the `place_images.slot` check-constraint values.
+const SLOT_TO_DB: Record<string, string> = {
+  reception: 'reception',
+  work: 'work',
+  backwash: 'backwash',
+  more: 'extra',
+};
+
+const toISODate = (ddmmyyyy: string): string | null => {
+  const match = ddmmyyyy.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!match) return null;
+  const [, day, month, year] = match;
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+};
+
+const parsePrice = (value: string): number | null => {
+  const numeric = parseFloat(value.replace(/[^0-9.]/g, ''));
+  return Number.isFinite(numeric) ? numeric : null;
+};
 
 interface PhotoSlot {
   key: string;
@@ -35,41 +62,11 @@ const PHOTO_SLOTS: PhotoSlot[] = [
   { key: 'more', caption: 'Add More Image' },
 ];
 
-interface SpaceCategory {
-  key: string;
-  title: string;
-  description?: string;
-  fullWidth?: boolean;
-}
-
-const CATEGORIES: SpaceCategory[] = [
-  { key: 'all', title: 'All categories' },
-  { key: 'hair', title: 'Hair / Rent a Chair', description: 'e.g. cutting, colouring, styling' },
-  {
-    key: 'beauty',
-    title: 'Beauty Room',
-    description: 'e.g. facials, waxing, tinting, makeup, brow & lash',
-  },
-  { key: 'barber', title: 'Barber Chair', description: "e.g. men's cuts, shaves, grooming" },
-  {
-    key: 'nail',
-    title: 'Nail Station',
-    description: 'e.g. manicure, pedicure, nail extensions',
-    fullWidth: true,
-  },
-  {
-    key: 'therapy',
-    title: 'Therapy Room',
-    description: 'e.g. massage, reflexology, holistic & complementary therapies',
-    fullWidth: true,
-  },
-];
-
 // Pairs up the narrow cards two-per-row and keeps full-width cards on their own row.
-const CATEGORY_ROWS: SpaceCategory[][] = (() => {
-  const rows: SpaceCategory[][] = [];
-  let pair: SpaceCategory[] = [];
-  CATEGORIES.forEach(item => {
+const CATEGORY_ROWS: PlaceCategory[][] = (() => {
+  const rows: PlaceCategory[][] = [];
+  let pair: PlaceCategory[] = [];
+  PLACE_CATEGORIES.forEach(item => {
     if (item.fullWidth) {
       if (pair.length) {
         rows.push(pair);
@@ -189,6 +186,11 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
   const [instantBooking, setInstantBooking] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
 
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [photos, setPhotos] = useState<Partial<Record<string, Asset>>>({});
+  const [submitting, setSubmitting] = useState(false);
+
   const toggleAmenity = (item: string) => {
     setSelectedAmenities(prev =>
       prev.includes(item) ? prev.filter(a => a !== item) : [...prev, item],
@@ -226,21 +228,120 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
     ToastAlert({ title: 'Add Amenity', description: 'Coming soon.' });
   };
 
-  const handleAddPhoto = (caption: string) => {
-    ToastAlert({ title: caption, description: 'Coming soon.' });
+  const handlePickPhoto = (slotKey: string, source: 'camera' | 'library') => {
+    if (source === 'camera') {
+      launchCamera({ mediaType: 'photo', quality: 0.8 }, response => {
+        if (response.didCancel) return;
+        if (response.errorCode) {
+          ToastAlert({
+            title: 'Could not open picker',
+            description: response.errorMessage || response.errorCode,
+          });
+          return;
+        }
+        const asset = response.assets?.[0];
+        if (asset) setPhotos(prev => ({ ...prev, [slotKey]: asset }));
+      });
+      return;
+    }
+
+    // Fills the tapped slot first, then any other still-empty slots in
+    // order, so picking several photos at once (up to 4 total) spreads
+    // across the remaining boxes instead of only filling the one tapped.
+    const startIndex = PHOTO_SLOTS.findIndex(slot => slot.key === slotKey);
+    const fillOrder = [...PHOTO_SLOTS.slice(startIndex), ...PHOTO_SLOTS.slice(0, startIndex)]
+      .map(slot => slot.key)
+      .filter(key => !photos[key]);
+
+    launchImageLibrary(
+      { mediaType: 'photo', quality: 0.8, selectionLimit: fillOrder.length },
+      response => {
+        if (response.didCancel) return;
+        if (response.errorCode) {
+          ToastAlert({
+            title: 'Could not open picker',
+            description: response.errorMessage || response.errorCode,
+          });
+          return;
+        }
+        const assets = response.assets ?? [];
+        if (!assets.length) return;
+
+        setPhotos(prev => {
+          const next = { ...prev };
+          assets.slice(0, fillOrder.length).forEach((asset, i) => {
+            next[fillOrder[i]] = asset;
+          });
+          return next;
+        });
+      },
+    );
+  };
+
+  const handleAddPhoto = (slotKey: string) => {
+    const emptySlotCount = PHOTO_SLOTS.filter(slot => !photos[slot.key]).length;
+    Alert.alert('Upload Photo', undefined, [
+      { text: 'Take Photo', onPress: () => handlePickPhoto(slotKey, 'camera') },
+      {
+        text: emptySlotCount > 1 ? `Choose from Library (up to ${emptySlotCount})` : 'Choose from Library',
+        onPress: () => handlePickPhoto(slotKey, 'library'),
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const handleRemovePhoto = (slotKey: string) => {
+    setPhotos(prev => {
+      const next = { ...prev };
+      delete next[slotKey];
+      return next;
+    });
   };
 
   const handleAddIncludedItem = () => {
     const value = includedInput.trim();
     if (!value || includedItems.includes(value)) return;
     setIncludedItems(prev => [...prev, value]);
+    setIncludedInput('');
   };
 
   const removeIncludedItem = (item: string) => {
     setIncludedItems(prev => prev.filter(i => i !== item));
   };
 
-  const handleAddPlace = () => {
+  const uploadPlacePhoto = async (
+    hostId: string,
+    placeId: string,
+    slotKey: string,
+    asset: Asset,
+  ): Promise<string | null> => {
+    if (!asset.uri) return null;
+
+    const response = await fetch(asset.uri);
+    const arrayBuffer = await response.arrayBuffer();
+    const ext =
+      asset.fileName?.split('.').pop()?.toLowerCase() ||
+      asset.uri.split('.').pop()?.toLowerCase() ||
+      'jpg';
+    const dbSlot = SLOT_TO_DB[slotKey] ?? 'extra';
+    const path = `${hostId}/${placeId}/${dbSlot}-${Date.now()}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(PLACE_IMAGE_BUCKET)
+      .upload(path, arrayBuffer, {
+        contentType: asset.type || 'image/jpeg',
+        upsert: true,
+      });
+
+    if (uploadError) {
+      ToastAlert({ title: 'Photo upload failed', description: uploadError.message });
+      return null;
+    }
+
+    return path;
+  };
+
+  const handleAddPlace = async () => {
     const requiredMin = getRequiredMinBookingDays(weeklyEnabled, monthlyEnabled);
     const numeric = parseInt(minBookingLength, 10);
 
@@ -250,8 +351,116 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
       return;
     }
 
-    // ToastAlert({ title: 'Add Place', description: 'Coming soon.' });
-    navigation.goBack()
+    if (!title.trim()) {
+      ToastAlert({ title: 'Title required', description: 'Please enter a title for your space.' });
+      return;
+    }
+
+    if (!addressStreet.trim()) {
+      ToastAlert({ title: 'Address required', description: 'Please search and select your address.' });
+      return;
+    }
+
+    if (!agreeTerms) {
+      ToastAlert({
+        title: 'Terms required',
+        description: "Please agree to Slottley's Terms & Conditions to continue.",
+      });
+      return;
+    }
+
+    const pricingTiers: Array<{ enabled: boolean; value: string; label: string }> = [
+      { enabled: hourlyEnabled, value: hourlyPrice, label: 'Hourly' },
+      { enabled: dailyEnabled, value: dailyPrice, label: 'Daily' },
+      { enabled: weeklyEnabled, value: weeklyPrice, label: 'Weekly' },
+      { enabled: monthlyEnabled, value: monthlyPrice, label: 'Monthly' },
+    ];
+    for (const tier of pricingTiers) {
+      if (tier.enabled && (parsePrice(tier.value) ?? 0) <= 0) {
+        ToastAlert({
+          title: 'Invalid pricing',
+          description: `Please enter a valid ${tier.label.toLowerCase()} price.`,
+        });
+        return;
+      }
+    }
+
+    setSubmitting(true);
+
+    const { data: authData } = await supabase.auth.getUser();
+    if (!authData.user) {
+      setSubmitting(false);
+      ToastAlert({ title: 'Not signed in', description: 'Please sign in again and retry.' });
+      return;
+    }
+    const hostId = authData.user.id;
+
+    const { data: inserted, error: insertError } = await supabase
+      .from('places')
+      .insert({
+        host_id: hostId,
+        title: title.trim(),
+        about: about.trim() || null,
+        business_name: businessName.trim() || null,
+        address_street: addressStreet.trim(),
+        area_town: areaTown.trim() || null,
+        post_code: postCode.trim() || null,
+        latitude,
+        longitude,
+        category: spaceType,
+        aesthetics_room: aestheticsRoom,
+        cqc_registered_only: aestheticsRoom ? cqcRegisteredOnly : false,
+        cancellation_policy: cancellationPolicy,
+        min_booking_days: numeric,
+        amenities: selectedAmenities,
+        included_items: includedItems,
+        hourly_price: hourlyEnabled ? parsePrice(hourlyPrice) : null,
+        hourly_enabled: hourlyEnabled,
+        daily_price: dailyEnabled ? parsePrice(dailyPrice) : null,
+        daily_enabled: dailyEnabled,
+        weekly_price: weeklyEnabled ? parsePrice(weeklyPrice) : null,
+        weekly_enabled: weeklyEnabled,
+        monthly_price: monthlyEnabled ? parsePrice(monthlyPrice) : null,
+        monthly_enabled: monthlyEnabled,
+        available_days: dailyEnabled ? availableDays : [],
+        available_from: toISODate(startDate),
+        available_to: toISODate(endDate),
+        instant_booking: instantBooking,
+      })
+      .select('id')
+      .single();
+
+    if (insertError || !inserted) {
+      setSubmitting(false);
+      ToastAlert({ title: 'Could not add place', description: insertError?.message ?? 'Please try again.' });
+      return;
+    }
+
+    const placeId = inserted.id as string;
+
+    const photoEntries = Object.entries(photos).filter(
+      (entry): entry is [string, Asset] => !!entry[1],
+    );
+    const imageRows: { place_id: string; slot: string; path: string; sort_order: number }[] = [];
+
+    for (let i = 0; i < photoEntries.length; i += 1) {
+      const [slotKey, asset] = photoEntries[i];
+      const path = await uploadPlacePhoto(hostId, placeId, slotKey, asset);
+      if (path) {
+        imageRows.push({ place_id: placeId, slot: SLOT_TO_DB[slotKey] ?? 'extra', path, sort_order: i });
+      }
+    }
+
+    if (imageRows.length > 0) {
+      const { error: imagesError } = await supabase.from('place_images').insert(imageRows);
+      if (imagesError) {
+        ToastAlert({ title: 'Some photos failed to save', description: imagesError.message });
+      }
+    }
+
+    setSubmitting(false);
+    ToastAlert({ title: 'Place added', description: 'Your space has been listed.' });
+    navigation.goBack();
   };
 
   return (
@@ -279,21 +488,43 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
       >
         <Text style={styles.sectionLabel}>Photos</Text>
         <View style={styles.photoGrid}>
-          {PHOTO_SLOTS.map(slot => (
-            <View key={slot.key} style={styles.photoSlot}>
-              <View style={styles.photoPlusCircle}>
-                <Text style={styles.photoPlusText}>+</Text>
+          {PHOTO_SLOTS.map(slot => {
+            const asset = photos[slot.key];
+            return (
+              <View key={slot.key} style={styles.photoSlot}>
+                {asset?.uri ? (
+                  <>
+                    <Image
+                      source={{ uri: asset.uri }}
+                      style={styles.photoPreview}
+                      resizeMode="cover"
+                    />
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      style={styles.photoRemoveBadge}
+                      onPress={() => handleRemovePhoto(slot.key)}
+                    >
+                      <CloseIcon size={12} color={colors.red} />
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <View style={styles.photoPlusCircle}>
+                      <Text style={styles.photoPlusText}>+</Text>
+                    </View>
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      style={styles.photoAddButton}
+                      onPress={() => handleAddPhoto(slot.key)}
+                    >
+                      <Text style={styles.photoAddButtonText}>Add</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.photoCaption}>{slot.caption}</Text>
+                  </>
+                )}
               </View>
-              <TouchableOpacity
-                activeOpacity={0.85}
-                style={styles.photoAddButton}
-                onPress={() => handleAddPhoto(slot.caption)}
-              >
-                <Text style={styles.photoAddButtonText}>Add</Text>
-              </TouchableOpacity>
-              <Text style={styles.photoCaption}>{slot.caption}</Text>
-            </View>
-          ))}
+            );
+          })}
         </View>
 
         <Text style={styles.sectionLabel}>Types Of Space</Text>
@@ -455,12 +686,16 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
         />
 
         <Text style={styles.sectionLabel}>Address Number & Street</Text>
-        <TextInput
+        <GooglePlaceField
           value={addressStreet}
-          onChangeText={setAddressStreet}
-          placeholder="Enter address number & street"
-          placeholderTextColor={colors.placeHolder}
-          style={styles.input}
+          placeholder="Search your address"
+          onSelect={result => {
+            setAddressStreet(result.streetAddress || result.formattedAddress);
+            if (result.areaTown) setAreaTown(result.areaTown);
+            if (result.postCode) setPostCode(result.postCode);
+            setLatitude(result.latitude);
+            setLongitude(result.longitude);
+          }}
         />
 
         <Text style={styles.sectionLabel}>Area / Town</Text>
@@ -515,9 +750,9 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
               </TouchableOpacity>
             );
           })}
-          <TouchableOpacity activeOpacity={0.85} style={styles.addNewChip} onPress={handleAddAmenity}>
+          {/* <TouchableOpacity activeOpacity={0.85} style={styles.addNewChip} onPress={handleAddAmenity}>
             <Text style={styles.addNewChipText}>Add New</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
 
         <Text style={styles.sectionLabel}>What's Included</Text>
@@ -663,7 +898,12 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
       </ScrollView>
 
       <View style={styles.footer}>
-        <CustomButton title="Add Place" onPress={handleAddPlace} />
+        <CustomButton
+          title="Add Place"
+          onPress={handleAddPlace}
+          loader={submitting}
+          disable={submitting}
+        />
       </View>
     </SafeAreaView>
   );
@@ -745,6 +985,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: wp(8),
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  photoPreview: {
+    width: '100%',
+    height: '100%',
+  },
+  photoRemoveBadge: {
+    position: 'absolute',
+    top: wp(6),
+    right: wp(6),
+    width: wp(22),
+    height: wp(22),
+    borderRadius: wp(11),
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
   },
   photoPlusCircle: {
     width: wp(36),

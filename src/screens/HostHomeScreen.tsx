@@ -1,26 +1,33 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   Image,
   StyleSheet,
   StatusBar,
-  ScrollView,
+  FlatList,
   TextInput,
   TouchableOpacity,
+  ActivityIndicator,
   ImageSourcePropType,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { icons } from '../../assets/icons';
-import { images } from '../../assets/images';
 import { colors } from '../utils/colors';
 import { headerShadow } from '../utils/shadows';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp } from '../helpers/responsive';
 import { getGreeting } from '../helpers/globalFunctions';
 import { useProfileAvatarUrl } from '../hooks/useProfileAvatarUrl';
+import { supabase } from '../api/supabaseClient';
+import { MySpace, fetchHostPlacesCount, fetchHostPlacesPage } from '../api/places';
 import { MainTabScreenProps } from '../navigation/TabNav';
+
+// Page size for the "My Space" list — bump this if a bigger/smaller page is
+// wanted; the query below just follows whatever it's set to, no backend
+// changes needed.
+const SPACES_PAGE_SIZE = 10;
 
 interface DashboardStat {
   key: string;
@@ -29,97 +36,102 @@ interface DashboardStat {
   label: string;
 }
 
-const DASHBOARD_STATS: DashboardStat[] = [
-  { key: 'places', icon: icons.totalPlace, value: '100', label: 'TOTAL PLACE' },
-  { key: 'jobs', icon: icons.totalJobs, value: '78', label: 'TOTAL JOBS' },
-  { key: 'bookings', icon: icons.totalBooking, value: '100', label: 'TOTAL BOOKING' },
-  { key: 'earnings', icon: icons.totalEarning, value: '£4521', label: 'TOTAL EARNINGS' },
-];
-
-export interface MySpace {
-  id: string;
-  title: string;
-  location: string;
-  price: string;
-  period: string;
-  image: ImageSourcePropType;
-  cqcRegistered?: boolean;
-  category: string;
-  categoryHint: string;
-  rating: string;
-  reviewCount: number;
-  status: 'Active' | 'Inactive';
-  description: string;
-}
-
-// TODO: replace with the signed-in host's real listings once this screen is
-// wired to a backend.
-export const MY_SPACES: MySpace[] = [
-  {
-    id: 'm1',
-    title: 'Luxury Beauty Room',
-    location: 'London, UK',
-    price: '£45',
-    period: 'day',
-    image: images.dummy2,
-    cqcRegistered: true,
-    category: 'Hair / Rent a Chair',
-    categoryHint: 'e.g. cutting, colouring, styling',
-    rating: '4.8',
-    reviewCount: 100,
-    status: 'Active',
-    description:
-      'A luxurious private beauty room perfect for hairstylists, beauticians, and wellness professionals. Modern setup with premium amenities in a prime location.',
-  },
-  {
-    id: 'm2',
-    title: 'Modern Barber Chair',
-    location: 'Manchester, UK',
-    price: '£85',
-    period: 'week',
-    image: images.dummy3,
-    category: 'Barber / Rent a Chair',
-    categoryHint: 'e.g. fades, beard trims, shaves',
-    rating: '4.6',
-    reviewCount: 62,
-    status: 'Active',
-    description:
-      'A sleek, modern barber setup in the heart of Manchester with premium chairs, mirrors, and clipper stations ready to go.',
-  },
-  {
-    id: 'm3',
-    title: 'Premium Nail Desk',
-    location: 'London, UK',
-    price: '£105',
-    period: 'month',
-    image: images.dummy1,
-    category: 'Nails / Rent a Desk',
-    categoryHint: 'e.g. manicure, pedicure, gel',
-    rating: '4.9',
-    reviewCount: 41,
-    status: 'Inactive',
-    description:
-      'A bright, well-ventilated nail desk with UV lamps, storage, and a client seating area — ideal for nail technicians.',
-  },
-  {
-    id: 'm4',
-    title: 'Clinic Place',
-    location: 'London, UK',
-    price: '£55',
-    period: 'day',
-    category: 'Clinic / Rent a Room',
-    categoryHint: 'e.g. facials, injectables, consultations',
-    rating: '4.7',
-    reviewCount: 28,
-    status: 'Active',
-    description:
-      'A private, hygienic clinic room suited to aesthetics and wellness treatments, fully equipped with a treatment bed and sink.',
-    image: images.dummy2,
-  },
-];
-
 const HostHomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
   const avatarUrl = useProfileAvatarUrl();
+
+  const [hostId, setHostId] = useState<string | null>(null);
+  const [totalPlaces, setTotalPlaces] = useState(0);
+  const [spaces, setSpaces] = useState<MySpace[]>([]);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingInitial, setLoadingInitial] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // Resolves the signed-in host and their overall place count once.
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) {
+        if (!cancelled) setLoadingInitial(false);
+        return;
+      }
+      const userId = authData.user.id;
+      if (cancelled) return;
+      setHostId(userId);
+
+      const count = await fetchHostPlacesCount(userId);
+      if (!cancelled) setTotalPlaces(count);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Debounces the search box so it doesn't re-query on every keystroke.
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // (Re)loads page 0 whenever the host resolves or the search term settles.
+  useEffect(() => {
+    if (!hostId) return;
+    let cancelled = false;
+
+    (async () => {
+      setLoadingInitial(true);
+      const { rows, more } = await fetchHostPlacesPage(hostId, 0, SPACES_PAGE_SIZE, debouncedSearch);
+      if (cancelled) return;
+      setSpaces(rows);
+      setHasMore(more);
+      setPage(0);
+      setLoadingInitial(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hostId, debouncedSearch]);
+
+  const handleLoadMore = async () => {
+    if (!hostId || loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+    const nextPage = page + 1;
+    const { rows, more } = await fetchHostPlacesPage(hostId, nextPage, SPACES_PAGE_SIZE, debouncedSearch);
+    setSpaces(prev => [...prev, ...rows]);
+    setHasMore(more);
+    setPage(nextPage);
+    setLoadingMore(false);
+  };
+
+  const handleRefresh = async () => {
+    if (!hostId) return;
+
+    setRefreshing(true);
+    const [count, pageResult] = await Promise.all([
+      fetchHostPlacesCount(hostId),
+      fetchHostPlacesPage(hostId, 0, SPACES_PAGE_SIZE, debouncedSearch),
+    ]);
+    setTotalPlaces(count);
+    setSpaces(pageResult.rows);
+    setHasMore(pageResult.more);
+    setPage(0);
+    setRefreshing(false);
+  };
+
+  const dashboardStats: DashboardStat[] = [
+    { key: 'places', icon: icons.totalPlace, value: String(totalPlaces), label: 'TOTAL PLACE' },
+    { key: 'jobs', icon: icons.totalJobs, value: '0', label: 'TOTAL JOBS' },
+    { key: 'bookings', icon: icons.totalBooking, value: '0', label: 'TOTAL BOOKING' },
+    { key: 'earnings', icon: icons.totalEarning, value: '£0', label: 'TOTAL EARNINGS' },
+  ];
 
   const handleAddSpace = () => {
     navigation.navigate('AddNewPlaceScreen');
@@ -163,6 +175,8 @@ const HostHomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
             resizeMode="contain"
           />
           <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
             placeholder="Type to search..."
             placeholderTextColor={colors.placeHolder}
             style={styles.searchInput}
@@ -170,70 +184,93 @@ const HostHomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
         </View>
       </SafeAreaView>
 
-      <ScrollView
+      <FlatList
         style={styles.flex}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.statsGrid}>
-          {DASHBOARD_STATS.map(stat => (
-            <View key={stat.key} style={styles.statCard}>
-              <Image source={stat.icon} style={styles.statIcon} resizeMode="contain" />
-              <Text style={styles.statValue}>{stat.value}</Text>
-              <Text style={styles.statLabel}>{stat.label}</Text>
+        data={spaces}
+        keyExtractor={item => item.id}
+        numColumns={2}
+        columnWrapperStyle={styles.spaceRow}
+        onEndReachedThreshold={0.4}
+        onEndReached={handleLoadMore}
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
+        ListHeaderComponent={
+          <>
+            <View style={styles.statsGrid}>
+              {dashboardStats.map(stat => (
+                <View key={stat.key} style={styles.statCard}>
+                  <Image source={stat.icon} style={styles.statIcon} resizeMode="contain" />
+                  <Text style={styles.statValue}>{stat.value}</Text>
+                  <Text style={styles.statLabel}>{stat.label}</Text>
+                </View>
+              ))}
             </View>
-          ))}
-        </View>
 
-        <Text style={styles.sectionTitle}>My Space</Text>
-
-        <View style={styles.spaceGrid}>
-          {MY_SPACES.map(space => (
-            <TouchableOpacity
-              key={space.id}
-              activeOpacity={0.9}
-              style={styles.spaceCard}
-              onPress={() => navigation.navigate('HostPlaceDetailScreen', { spaceId: space.id })}
-            >
-              <View style={styles.spaceImageFrame}>
-                <View style={styles.spaceImageWrap}>
-                  <Image source={space.image} style={styles.spaceImage} resizeMode="cover" />
-                  <View style={styles.activeBadge}>
-                    <Text style={styles.activeBadgeText}>{space.status}</Text>
-                  </View>
+            <Text style={styles.sectionTitle}>My Space</Text>
+          </>
+        }
+        ListEmptyComponent={
+          loadingInitial ? (
+            <ActivityIndicator size="small" color={colors.primary} style={styles.listLoader} />
+          ) : (
+            <Text style={styles.emptyText}>
+              {debouncedSearch
+                ? 'No spaces match your search.'
+                : "You haven't listed any spaces yet."}
+            </Text>
+          )
+        }
+        ListFooterComponent={
+          loadingMore ? (
+            <ActivityIndicator size="small" color={colors.primary} style={styles.listLoader} />
+          ) : null
+        }
+        renderItem={({ item: space }) => (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            style={styles.spaceCard}
+            onPress={() => navigation.navigate('HostPlaceDetailScreen', { spaceId: space.id })}
+          >
+            <View style={styles.spaceImageFrame}>
+              <View style={styles.spaceImageWrap}>
+                <Image source={space.image} style={styles.spaceImage} resizeMode="cover" />
+                <View style={styles.activeBadge}>
+                  <Text style={styles.activeBadgeText}>{space.status}</Text>
                 </View>
               </View>
+            </View>
 
-              <View style={styles.spaceInfo}>
-                <Text numberOfLines={1} style={styles.spaceTitle}>
-                  {space.title}
+            <View style={styles.spaceInfo}>
+              <Text numberOfLines={1} style={styles.spaceTitle}>
+                {space.title}
+              </Text>
+
+              {space.cqcRegistered && (
+                <View style={styles.cqcRow}>
+                  <View style={styles.cqcBadge}>
+                    <Text style={styles.cqcBadgeText}>CQC Registered ✓</Text>
+                  </View>
+                  <Image source={icons.plainInfo} style={styles.cqcInfoIcon} resizeMode="contain" />
+                </View>
+              )}
+
+              <View style={styles.locationRow}>
+                <Image source={icons.mapPin} style={styles.pinIcon} resizeMode="contain" />
+                <Text numberOfLines={1} style={styles.location}>
+                  {space.location}
                 </Text>
-
-                {space.cqcRegistered && (
-                  <View style={styles.cqcRow}>
-                    <View style={styles.cqcBadge}>
-                      <Text style={styles.cqcBadgeText}>CQC Registered ✓</Text>
-                    </View>
-                    <Image source={icons.plainInfo} style={styles.cqcInfoIcon} resizeMode="contain" />
-                  </View>
-                )}
-
-                <View style={styles.locationRow}>
-                  <Image source={icons.mapPin} style={styles.pinIcon} resizeMode="contain" />
-                  <Text numberOfLines={1} style={styles.location}>
-                    {space.location}
-                  </Text>
-                </View>
-
-                <View style={styles.priceRow}>
-                  <Text style={styles.price}>{space.price}</Text>
-                  <Text style={styles.period}>/{space.period}</Text>
-                </View>
               </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </ScrollView>
+
+              <View style={styles.priceRow}>
+                <Text style={styles.price}>{space.price}</Text>
+                <Text style={styles.period}>/{space.period}</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        )}
+      />
 
       <TouchableOpacity activeOpacity={0.85} style={styles.fab} onPress={handleAddSpace}>
         <Image source={icons.addRound} style={styles.fabIcon} resizeMode="contain" />
@@ -378,10 +415,18 @@ const styles = StyleSheet.create({
     fontFamily: fonts.Lato700,
     marginBottom: hp(14),
   },
-  spaceGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: wp(14),
+  spaceRow: {
+    justifyContent: 'space-between',
+  },
+  listLoader: {
+    marginVertical: hp(20),
+  },
+  emptyText: {
+    marginTop: hp(12),
+    textAlign: 'center',
+    color: colors.subText,
+    fontSize: fontSize(14),
+    fontFamily: fonts.Lato500,
   },
   spaceCard: {
     width: '48%',

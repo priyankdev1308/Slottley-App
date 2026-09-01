@@ -11,7 +11,8 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { launchCamera, launchImageLibrary, Asset } from 'react-native-image-picker';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
+import DocumentPicker, { isCancel as isDocumentPickerCancel } from 'react-native-document-picker';
 
 import CustomButton from '../components/CustomButton';
 import ToastAlert from '../components/ToastAlert';
@@ -39,6 +40,15 @@ interface UploadItem {
   description?: string;
 }
 
+interface PendingFile {
+  uri: string;
+  name: string;
+  type: string;
+}
+
+const isPdfFile = (nameOrPath: string, type?: string | null) =>
+  type === 'application/pdf' || nameOrPath.toLowerCase().endsWith('.pdf');
+
 const UPLOAD_ITEMS: UploadItem[] = [
   { key: 'identity_images', title: 'Photo ID (Passport or Driving Licence)' },
   {
@@ -57,7 +67,7 @@ const GetVerifiedScreen = ({ navigation }: GetVerifiedScreenProps) => {
 
   const [verification, setVerification] = useState<VerificationRow | null>(null);
   const [existingUrls, setExistingUrls] = useState<Partial<Record<SlotKey, string>>>({});
-  const [pendingAssets, setPendingAssets] = useState<Partial<Record<SlotKey, Asset>>>({});
+  const [pendingAssets, setPendingAssets] = useState<Partial<Record<SlotKey, PendingFile>>>({});
 
   const loadSignedUrls = async (row: VerificationRow) => {
     const urls: Partial<Record<SlotKey, string>> = {};
@@ -113,14 +123,47 @@ const GetVerifiedScreen = ({ navigation }: GetVerifiedScreenProps) => {
         return;
       }
       const asset = response.assets?.[0];
-      if (asset) setPendingAssets(prev => ({ ...prev, [slot]: asset }));
+      if (!asset?.uri) return;
+      setPendingAssets(prev => ({
+        ...prev,
+        [slot]: {
+          uri: asset.uri!,
+          name: asset.fileName || `photo-${Date.now()}.jpg`,
+          type: asset.type || 'image/jpeg',
+        },
+      }));
     });
+  };
+
+  const handlePickDocument = async (slot: SlotKey) => {
+    try {
+      const [result] = await DocumentPicker.pick({
+        type: [DocumentPicker.types.pdf],
+        copyTo: 'cachesDirectory',
+      });
+      const uri = result.fileCopyUri || result.uri;
+      setPendingAssets(prev => ({
+        ...prev,
+        [slot]: {
+          uri,
+          name: result.name || `document-${Date.now()}.pdf`,
+          type: result.type || 'application/pdf',
+        },
+      }));
+    } catch (err) {
+      if (isDocumentPickerCancel(err)) return;
+      ToastAlert({
+        title: 'Could not open document picker',
+        description: err instanceof Error ? err.message : 'Something went wrong.',
+      });
+    }
   };
 
   const handleAddPress = (slot: SlotKey) => {
     Alert.alert('Upload Document', undefined, [
       { text: 'Take Photo', onPress: () => handlePick(slot, 'camera') },
       { text: 'Choose from Library', onPress: () => handlePick(slot, 'library') },
+      { text: 'Choose PDF Document', onPress: () => handlePickDocument(slot) },
       { text: 'Cancel', style: 'cancel' },
     ]);
   };
@@ -175,21 +218,22 @@ const GetVerifiedScreen = ({ navigation }: GetVerifiedScreenProps) => {
     clearLocalSlot(slot);
   };
 
-  const uploadDoc = async (slot: SlotKey, asset: Asset): Promise<string | null> => {
-    if (!userId || !asset.uri) return null;
+  const uploadDoc = async (slot: SlotKey, file: PendingFile): Promise<string | null> => {
+    if (!userId || !file.uri) return null;
 
-    const response = await fetch(asset.uri);
+    const response = await fetch(file.uri);
     const arrayBuffer = await response.arrayBuffer();
+    const isPdf = isPdfFile(file.name, file.type);
     const ext =
-      asset.fileName?.split('.').pop()?.toLowerCase() ||
-      asset.uri.split('.').pop()?.toLowerCase() ||
-      'jpg';
+      file.name.split('.').pop()?.toLowerCase() ||
+      file.uri.split('.').pop()?.toLowerCase() ||
+      (isPdf ? 'pdf' : 'jpg');
     const path = `${userId}/${slot}-${Date.now()}.${ext}`;
 
     const { error: uploadError } = await supabase.storage
       .from(VERIFICATION_BUCKET)
       .upload(path, arrayBuffer, {
-        contentType: asset.type || 'image/jpeg',
+        contentType: file.type || (isPdf ? 'application/pdf' : 'image/jpeg'),
         upsert: true,
       });
 
@@ -311,7 +355,13 @@ const GetVerifiedScreen = ({ navigation }: GetVerifiedScreenProps) => {
             )}
 
             {UPLOAD_ITEMS.map(item => {
-              const previewUri = pendingAssets[item.key]?.uri ?? existingUrls[item.key];
+              const pendingFile = pendingAssets[item.key];
+              const existingPath = verification?.[item.key] ?? null;
+              const previewUri = pendingFile?.uri ?? existingUrls[item.key];
+              const isPdf = pendingFile
+                ? isPdfFile(pendingFile.name, pendingFile.type)
+                : !!existingPath && isPdfFile(existingPath);
+              const fileLabel = pendingFile?.name ?? existingPath?.split('/').pop();
 
               return (
                 <View key={item.key}>
@@ -320,29 +370,63 @@ const GetVerifiedScreen = ({ navigation }: GetVerifiedScreenProps) => {
                     <Text style={styles.sectionDescription}>{item.description}</Text>
                   )}
 
-                  <View style={[styles.uploadBox, !previewUri && styles.uploadBoxEmpty]}>
+                  <View
+                    style={[
+                      styles.uploadBox,
+                      !previewUri && styles.uploadBoxEmpty,
+                      !!previewUri && isPdf && styles.uploadBoxFile,
+                    ]}
+                  >
                     {previewUri ? (
-                      <>
-                        <Image
-                          source={{ uri: previewUri }}
-                          style={styles.previewImage}
-                          resizeMode="cover"
-                        />
-                        {editable && (
-                          <TouchableOpacity
-                            activeOpacity={0.85}
-                            style={styles.removeBadge}
-                            disabled={removingSlot === item.key}
-                            onPress={() => handleRemove(item.key)}
-                          >
-                            {removingSlot === item.key ? (
-                              <ActivityIndicator size="small" color={colors.red} />
-                            ) : (
-                              <Text style={styles.removeBadgeText}>Remove</Text>
-                            )}
-                          </TouchableOpacity>
-                        )}
-                      </>
+                      isPdf ? (
+                        <View style={styles.fileRow}>
+                          <View style={styles.pdfIconBox}>
+                            <Text style={styles.pdfIconText}>PDF</Text>
+                          </View>
+                          <View style={styles.fileInfo}>
+                            <Text style={styles.fileName} numberOfLines={1}>
+                              {fileLabel}
+                            </Text>
+                            <Text style={styles.fileType}>PDF Document</Text>
+                          </View>
+                          {editable && (
+                            <TouchableOpacity
+                              activeOpacity={0.85}
+                              style={styles.removeFileButton}
+                              disabled={removingSlot === item.key}
+                              onPress={() => handleRemove(item.key)}
+                            >
+                              {removingSlot === item.key ? (
+                                <ActivityIndicator size="small" color={colors.red} />
+                              ) : (
+                                <Text style={styles.removeBadgeText}>Remove</Text>
+                              )}
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      ) : (
+                        <>
+                          <Image
+                            source={{ uri: previewUri }}
+                            style={styles.previewImage}
+                            resizeMode="cover"
+                          />
+                          {editable && (
+                            <TouchableOpacity
+                              activeOpacity={0.85}
+                              style={styles.removeBadge}
+                              disabled={removingSlot === item.key}
+                              onPress={() => handleRemove(item.key)}
+                            >
+                              {removingSlot === item.key ? (
+                                <ActivityIndicator size="small" color={colors.red} />
+                              ) : (
+                                <Text style={styles.removeBadgeText}>Remove</Text>
+                              )}
+                            </TouchableOpacity>
+                          )}
+                        </>
+                      )
                     ) : (
                       <>
                         <View style={styles.plusCircle}>
@@ -495,6 +579,57 @@ const styles = StyleSheet.create({
     width: '100%',
     height: hp(180),
   },
+  uploadBoxFile: {
+    paddingVertical: hp(16),
+    paddingHorizontal: wp(14),
+  },
+  fileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+  },
+  pdfIconBox: {
+    width: wp(48),
+    height: wp(48),
+    borderRadius: wp(10),
+    backgroundColor: colors.primary20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: wp(12),
+  },
+  pdfIconText: {
+    color: colors.primary,
+    fontSize: fontSize(11),
+    fontFamily: fonts.Lato700,
+  },
+  fileInfo: {
+    flex: 1,
+  },
+  fileName: {
+    color: colors.black,
+    fontSize: fontSize(13),
+    fontFamily: fonts.Lato600,
+  },
+  fileType: {
+    marginTop: hp(2),
+    color: colors.subText,
+    fontSize: fontSize(11),
+    fontFamily: fonts.Lato400,
+  },
+  removeFileButton: {
+    marginLeft: wp(10),
+    paddingHorizontal: wp(14),
+    paddingVertical: hp(8),
+    borderRadius: wp(20),
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.red80,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 3,
+  },
   removeBadge: {
     position: 'absolute',
     right: wp(12),
@@ -502,9 +637,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: wp(14),
     paddingVertical: hp(8),
     borderRadius: wp(20),
-    backgroundColor: colors.lightRed,
+    backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.red80,
+    shadowColor: colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 4,
   },
   removeBadgeText: {
     color: colors.red,
