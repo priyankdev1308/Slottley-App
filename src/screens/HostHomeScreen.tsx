@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -12,8 +12,10 @@ import {
   ImageSourcePropType,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { icons } from '../../assets/icons';
+import { CloseIcon } from '../components/icons/CardIcons';
 import { colors } from '../utils/colors';
 import { headerShadow } from '../utils/shadows';
 import { fonts } from '../utils/fonts';
@@ -111,10 +113,9 @@ const HostHomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
     setLoadingMore(false);
   };
 
-  const handleRefresh = async () => {
+  const refreshData = async () => {
     if (!hostId) return;
 
-    setRefreshing(true);
     const [count, pageResult] = await Promise.all([
       fetchHostPlacesCount(hostId),
       fetchHostPlacesPage(hostId, 0, SPACES_PAGE_SIZE, debouncedSearch),
@@ -123,8 +124,30 @@ const HostHomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
     setSpaces(pageResult.rows);
     setHasMore(pageResult.more);
     setPage(0);
+  };
+
+  const handleRefresh = async () => {
+    if (!hostId) return;
+    setRefreshing(true);
+    await refreshData();
     setRefreshing(false);
   };
+
+  // Skips the very first focus (handled already by the mount effect above)
+  // and silently refreshes on every focus after that — so returning from
+  // Add/Edit Place shows the change immediately instead of stale stats/list.
+  // Deliberately doesn't toggle `refreshing`: that drives the pull-to-refresh
+  // spinner, which should only appear for an actual manual pull gesture.
+  const isFirstFocusRef = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (isFirstFocusRef.current) {
+        isFirstFocusRef.current = false;
+        return;
+      }
+      refreshData();
+    }, [hostId, debouncedSearch]),
+  );
 
   const dashboardStats: DashboardStat[] = [
     { key: 'places', icon: icons.totalPlace, value: String(totalPlaces), label: 'TOTAL PLACE' },
@@ -181,6 +204,15 @@ const HostHomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
             placeholderTextColor={colors.placeHolder}
             style={styles.searchInput}
           />
+          {!!searchQuery && (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              onPress={() => setSearchQuery('')}
+            >
+              <CloseIcon size={14} color={colors.subText} />
+            </TouchableOpacity>
+          )}
         </View>
       </SafeAreaView>
 

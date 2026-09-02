@@ -15,6 +15,7 @@ const CustomButton = ({
   title,
   onPress,
   loader,
+  loaderColor,
   disable,
   buttonStyle,
   textStyle,
@@ -27,7 +28,7 @@ const CustomButton = ({
       style={[styles.button, buttonStyle, !!disable && styles.disabled]}
     >
       {loader ? (
-        <ActivityIndicator color={colors.white} />
+        <ActivityIndicator color={loaderColor ?? colors.white} />
       ) : (
         <Text style={[styles.text, textStyle]}>{title}</Text>
       )}

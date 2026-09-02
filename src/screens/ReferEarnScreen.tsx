@@ -23,10 +23,6 @@ import { fontSize, hp, wp } from '../helpers/responsive';
 import { supabase } from '../api/supabaseClient';
 import { ReferEarnScreenProps } from '../interface/screenTypes';
 
-// TODO: replace with the signed-in user's real credit balance
-// (public.users) once that's tracked — referral_code is already real.
-const CREDIT_BALANCE = 100;
-
 const HOW_IT_WORKS = [
   'Share your code with stylists, beauticians or salon owners.',
   'When they sign up with it, you get £10 credit.',
@@ -35,6 +31,7 @@ const HOW_IT_WORKS = [
 
 const ReferEarnScreen = ({ navigation }: ReferEarnScreenProps) => {
   const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [creditBalance, setCreditBalance] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -47,11 +44,12 @@ const ReferEarnScreen = ({ navigation }: ReferEarnScreenProps) => {
 
       const { data } = await supabase
         .from('users')
-        .select('referral_code')
+        .select('referral_code, wallet_balance')
         .eq('id', authData.user.id)
         .single();
 
       setReferralCode(data?.referral_code ?? null);
+      setCreditBalance(data?.wallet_balance ?? 0);
       setLoading(false);
     })();
   }, []);
@@ -94,7 +92,7 @@ const ReferEarnScreen = ({ navigation }: ReferEarnScreenProps) => {
       >
         <View style={styles.balanceCard}>
           <Text style={styles.balanceLabel}>Your Credit Balance</Text>
-          <Text style={styles.balanceValue}>£{CREDIT_BALANCE}</Text>
+          <Text style={styles.balanceValue}>£{creditBalance}</Text>
           <Text style={styles.balanceDesc}>
             Applied automatically to your next booking.
           </Text>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
   NativeScrollEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 
 import CustomButton from '../components/CustomButton';
 import ReadMoreText from '../components/ReadMoreText';
@@ -31,10 +32,9 @@ const AMENITY_ICONS: Record<string, ImageSourcePropType> = {
   'Wi-Fi': icons.wifi,
   Mirror: icons.mirror,
   'Music System': icons.music,
-  AC: icons.fan,
+  'Fan & AC': icons.fan,
   Lights: icons.light,
-  Fan: icons.fan,
-  Towels: icons.checkGreen,
+  Towels: icons.towel,
 };
 
 const HostPlaceDetailScreen = ({ navigation, route }: HostPlaceDetailScreenProps) => {
@@ -47,24 +47,29 @@ const HostPlaceDetailScreen = ({ navigation, route }: HostPlaceDetailScreenProps
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
+  // Re-fetches every time this screen regains focus — not just on mount —
+  // so returning from Edit shows the just-saved changes instead of stale data.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      setLoading(true);
 
-    (async () => {
-      if (!spaceId) {
+      (async () => {
+        if (!spaceId) {
+          setLoading(false);
+          return;
+        }
+        const result = await fetchPlaceById(spaceId);
+        if (cancelled) return;
+        setSpace(result);
         setLoading(false);
-        return;
-      }
-      const result = await fetchPlaceById(spaceId);
-      if (cancelled) return;
-      setSpace(result);
-      setLoading(false);
-    })();
+      })();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [spaceId]);
+      return () => {
+        cancelled = true;
+      };
+    }, [spaceId]),
+  );
 
   const gallery = space?.gallery ?? [];
 
@@ -303,15 +308,19 @@ const HostPlaceDetailScreen = ({ navigation, route }: HostPlaceDetailScreenProps
       <View style={styles.footer}>
         <CustomButton
           title="Edit"
-          onPress={() => navigation.navigate('AddNewPlaceScreen')}
+          onPress={() => navigation.navigate('AddNewPlaceScreen', { placeId: space.id })}
           buttonStyle={styles.editButton}
           textStyle={styles.editButtonText}
+          disable={deleting}
         />
         <CustomButton
           title="Delete"
           onPress={handleDelete}
           buttonStyle={styles.deleteButton}
           textStyle={styles.deleteButtonText}
+          loader={deleting}
+          loaderColor={colors.red}
+          disable={deleting}
         />
       </View>
     </SafeAreaView>
@@ -541,11 +550,11 @@ const styles = StyleSheet.create({
   },
   amenitiesRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
   },
   amenityItem: {
+    flex: 1,
     alignItems: 'center',
-    width: wp(60),
+    paddingHorizontal: wp(2),
   },
   amenityIcon: {
     width: wp(20),

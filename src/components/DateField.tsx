@@ -12,11 +12,12 @@ interface DateFieldProps {
   onChange: (formatted: string) => void;
   placeholder?: string;
   minimumDate?: Date;
+  maximumDate?: Date;
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
-const formatDate = (date: Date) => `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
+export const formatDate = (date: Date) => `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
 
 // Parses our DD/MM/YYYY display format back into a Date, falling back to
 // today when the field is empty or holds something unparseable.
@@ -28,7 +29,7 @@ const parseDate = (value: string): Date => {
   return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
 };
 
-const DateField = ({ value, onChange, placeholder = 'Select date', minimumDate }: DateFieldProps) => {
+const DateField = ({ value, onChange, placeholder = 'Select date', minimumDate, maximumDate }: DateFieldProps) => {
   const [pickerVisible, setPickerVisible] = useState(false);
   const [draftDate, setDraftDate] = useState(() => parseDate(value));
 
@@ -69,6 +70,7 @@ const DateField = ({ value, onChange, placeholder = 'Select date', minimumDate }
           mode="date"
           display="default"
           minimumDate={minimumDate}
+          maximumDate={maximumDate}
           onValueChange={handleAndroidChange}
           onDismiss={() => setPickerVisible(false)}
         />
@@ -92,6 +94,7 @@ const DateField = ({ value, onChange, placeholder = 'Select date', minimumDate }
                 mode="date"
                 display="spinner"
                 minimumDate={minimumDate}
+                maximumDate={maximumDate}
                 onValueChange={handleIosChange}
                 style={styles.iosPicker}
               />

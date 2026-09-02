@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,13 +9,14 @@ import {
   TextInput,
   Switch,
   TouchableOpacity,
+  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { launchCamera, launchImageLibrary, Asset } from 'react-native-image-picker';
 
 import CustomButton from '../components/CustomButton';
-import DateField from '../components/DateField';
+import DateField, { formatDate } from '../components/DateField';
 import GooglePlaceField from '../components/GooglePlaceField';
 import ToastAlert from '../components/ToastAlert';
 import { CloseIcon } from '../components/icons/CardIcons';
@@ -25,6 +26,7 @@ import { headerShadow } from '../utils/shadows';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp } from '../helpers/responsive';
 import { supabase } from '../api/supabaseClient';
+import { EditablePlaceImage, fetchPlaceForEdit } from '../api/places';
 import { PLACE_CATEGORIES, PlaceCategory } from '../utils/placeCategories';
 import { AddNewPlaceScreenProps } from '../interface/screenTypes';
 
@@ -38,12 +40,42 @@ const SLOT_TO_DB: Record<string, string> = {
   more: 'extra',
 };
 
+const DB_SLOT_TO_UI: Record<string, string> = {
+  reception: 'reception',
+  work: 'work',
+  backwash: 'backwash',
+  extra: 'more',
+};
+
 const toISODate = (ddmmyyyy: string): string | null => {
   const match = ddmmyyyy.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (!match) return null;
   const [, day, month, year] = match;
   return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 };
+
+const fromISODate = (iso: string): string => {
+  const [year, month, day] = iso.split('-');
+  return `${day}/${month}/${year}`;
+};
+
+// Parses our DD/MM/YYYY display format back into a Date, falling back to
+// today when the field is empty or holds something unparseable.
+const parseDMY = (ddmmyyyy: string): Date => {
+  const match = ddmmyyyy.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!match) return new Date();
+  const [, day, month, year] = match;
+  const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+};
+
+const addDays = (date: Date, days: number) => {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+};
+
+const MAX_AVAILABILITY_DAYS = 30;
 
 const parsePrice = (value: string): number | null => {
   const numeric = parseFloat(value.replace(/[^0-9.]/g, ''));
@@ -113,7 +145,7 @@ const CANCELLATION_OPTIONS: CancellationOption[] = [
   },
 ];
 
-const DEFAULT_AMENITIES = ['Wi-Fi', 'Mirror', 'Music System', 'AC', 'Lights', 'Fan', 'Towels'];
+const DEFAULT_AMENITIES = ['Wi-Fi', 'Mirror', 'Music System', 'Fan & AC', 'Lights', 'Towels'];
 const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 interface PricingFieldProps {
@@ -147,7 +179,17 @@ const PricingField = ({ label, value, onChangeText, enabled, onToggle }: Pricing
   </View>
 );
 
-const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
+const AddNewPlaceScreen = ({ navigation, route }: AddNewPlaceScreenProps) => {
+  // The form's content height jumps once the prefilled edit data lands,
+  // which shifts the ScrollView's position on iOS — snap back to the top
+  // exactly once when that load finishes so the screen doesn't open mid-page.
+  const scrollRef = useRef<ScrollView>(null);
+  const placeId = route.params?.placeId;
+  const isEditing = !!placeId;
+  const [loadingExisting, setLoadingExisting] = useState(isEditing);
+  const [existingImages, setExistingImages] = useState<Partial<Record<string, EditablePlaceImage>>>({});
+  const [removingSlot, setRemovingSlot] = useState<string | null>(null);
+
   const [spaceType, setSpaceType] = useState('beauty');
   const [aestheticsRoom, setAestheticsRoom] = useState(true);
   const [cqcRegisteredOnly, setCqcRegisteredOnly] = useState(true);
@@ -168,7 +210,7 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>(['Music System']);
 
   const [includedInput, setIncludedInput] = useState('');
-  const [includedItems, setIncludedItems] = useState<string[]>(['Shampoo', 'Tea & Coffee']);
+  const [includedItems, setIncludedItems] = useState<string[]>([]);
 
   const [hourlyPrice, setHourlyPrice] = useState('£');
   const [dailyPrice, setDailyPrice] = useState('£');
@@ -180,8 +222,8 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
   const [weeklyEnabled, setWeeklyEnabled] = useState(false);
   const [monthlyEnabled, setMonthlyEnabled] = useState(false);
 
-  const [startDate, setStartDate] = useState('15/12/2026');
-  const [endDate, setEndDate] = useState('17/12/2026');
+  const [startDate, setStartDate] = useState(() => formatDate(new Date()));
+  const [endDate, setEndDate] = useState(() => formatDate(addDays(new Date(), MAX_AVAILABILITY_DAYS)));
 
   const [instantBooking, setInstantBooking] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
@@ -190,6 +232,71 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
   const [longitude, setLongitude] = useState<number | null>(null);
   const [photos, setPhotos] = useState<Partial<Record<string, Asset>>>({});
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!placeId) return;
+    let cancelled = false;
+
+    (async () => {
+      const place = await fetchPlaceForEdit(placeId);
+      if (cancelled) return;
+
+      if (!place) {
+        setLoadingExisting(false);
+        ToastAlert({ title: 'Could not load place', description: 'Please try again.' });
+        navigation.goBack();
+        return;
+      }
+
+      setTitle(place.title);
+      setAbout(place.about);
+      setBusinessName(place.businessName);
+      setAddressStreet(place.addressStreet);
+      setAreaTown(place.areaTown);
+      setPostCode(place.postCode);
+      setLatitude(place.latitude);
+      setLongitude(place.longitude);
+      setSpaceType(place.category);
+      setAestheticsRoom(place.aestheticsRoom);
+      setCqcRegisteredOnly(place.cqcRegisteredOnly);
+      setCancellationPolicy(place.cancellationPolicy);
+      setMinBookingLength(String(place.minBookingDays));
+      setSelectedAmenities(place.amenities);
+      setIncludedItems(place.includedItems);
+      setHourlyPrice(place.hourlyPrice != null ? `£${place.hourlyPrice}` : '£');
+      setHourlyEnabled(place.hourlyEnabled);
+      setDailyPrice(place.dailyPrice != null ? `£${place.dailyPrice}` : '£');
+      setDailyEnabled(place.dailyEnabled);
+      setWeeklyPrice(place.weeklyPrice != null ? `£${place.weeklyPrice}` : '£');
+      setWeeklyEnabled(place.weeklyEnabled);
+      setMonthlyPrice(place.monthlyPrice != null ? `£${place.monthlyPrice}` : '£');
+      setMonthlyEnabled(place.monthlyEnabled);
+      setAvailableDays(place.availableDays);
+      if (place.availableFrom) setStartDate(fromISODate(place.availableFrom));
+      if (place.availableTo) setEndDate(fromISODate(place.availableTo));
+      setInstantBooking(place.instantBooking);
+      setAgreeTerms(true);
+
+      const imagesBySlot: Partial<Record<string, EditablePlaceImage>> = {};
+      place.images.forEach(image => {
+        const uiSlot = DB_SLOT_TO_UI[image.slot] ?? 'more';
+        imagesBySlot[uiSlot] = image;
+      });
+      setExistingImages(imagesBySlot);
+
+      setLoadingExisting(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [placeId]);
+
+  useEffect(() => {
+    if (!loadingExisting) {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+    }
+  }, [loadingExisting]);
 
   const toggleAmenity = (item: string) => {
     setSelectedAmenities(prev =>
@@ -201,6 +308,21 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
     setAvailableDays(prev =>
       prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
     );
+  };
+
+  // Keeps the End Date pinned within [start, start + 30 days] whenever the
+  // Start Date moves — the DateField's own min/max only stops new picks,
+  // it can't retroactively fix a value that's now out of range.
+  const handleStartDateChange = (formatted: string) => {
+    setStartDate(formatted);
+
+    const newStart = parseDMY(formatted);
+    const newMaxEnd = addDays(newStart, MAX_AVAILABILITY_DAYS);
+    const currentEnd = parseDMY(endDate);
+
+    if (currentEnd < newStart || currentEnd > newMaxEnd) {
+      setEndDate(formatDate(newMaxEnd));
+    }
   };
 
   const getRequiredMinBookingDays = (weeklyEnabled: boolean, monthlyEnabled: boolean) => {
@@ -248,10 +370,12 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
     // Fills the tapped slot first, then any other still-empty slots in
     // order, so picking several photos at once (up to 4 total) spreads
     // across the remaining boxes instead of only filling the one tapped.
+    // Slots holding an already-uploaded image are excluded — those must be
+    // removed first before a new photo can go in.
     const startIndex = PHOTO_SLOTS.findIndex(slot => slot.key === slotKey);
     const fillOrder = [...PHOTO_SLOTS.slice(startIndex), ...PHOTO_SLOTS.slice(0, startIndex)]
       .map(slot => slot.key)
-      .filter(key => !photos[key]);
+      .filter(key => !photos[key] && !existingImages[key]);
 
     launchImageLibrary(
       { mediaType: 'photo', quality: 0.8, selectionLimit: fillOrder.length },
@@ -279,7 +403,9 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
   };
 
   const handleAddPhoto = (slotKey: string) => {
-    const emptySlotCount = PHOTO_SLOTS.filter(slot => !photos[slot.key]).length;
+    const emptySlotCount = PHOTO_SLOTS.filter(
+      slot => !photos[slot.key] && !existingImages[slot.key],
+    ).length;
     Alert.alert('Upload Photo', undefined, [
       { text: 'Take Photo', onPress: () => handlePickPhoto(slotKey, 'camera') },
       {
@@ -296,6 +422,55 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
       delete next[slotKey];
       return next;
     });
+  };
+
+  // Removing an already-uploaded photo deletes it for real right away —
+  // from storage and its place_images row — rather than waiting for Save.
+  const handleRemoveExistingPhoto = (slotKey: string) => {
+    const image = existingImages[slotKey];
+    if (!image || !placeId) return;
+
+    Alert.alert(
+      'Remove Photo',
+      'Are you sure you want to remove this photo? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            setRemovingSlot(slotKey);
+
+            const { error: storageError } = await supabase.storage
+              .from(PLACE_IMAGE_BUCKET)
+              .remove([image.path]);
+            if (storageError) {
+              setRemovingSlot(null);
+              ToastAlert({ title: 'Could not remove photo', description: storageError.message });
+              return;
+            }
+
+            const { error: dbError } = await supabase
+              .from('place_images')
+              .delete()
+              .eq('place_id', placeId)
+              .eq('path', image.path);
+            setRemovingSlot(null);
+
+            if (dbError) {
+              ToastAlert({ title: 'Could not remove photo', description: dbError.message });
+              return;
+            }
+
+            setExistingImages(prev => {
+              const next = { ...prev };
+              delete next[slotKey];
+              return next;
+            });
+          },
+        },
+      ],
+    );
   };
 
   const handleAddIncludedItem = () => {
@@ -385,6 +560,12 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
       }
     }
 
+    const totalImageCount = Object.keys(photos).length + Object.keys(existingImages).length;
+    if (totalImageCount === 0) {
+      ToastAlert({ title: 'Photo required', description: 'Please add at least one photo of your space.' });
+      return;
+    }
+
     setSubmitting(true);
 
     const { data: authData } = await supabase.auth.getUser();
@@ -395,48 +576,63 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
     }
     const hostId = authData.user.id;
 
-    const { data: inserted, error: insertError } = await supabase
-      .from('places')
-      .insert({
-        host_id: hostId,
-        title: title.trim(),
-        about: about.trim() || null,
-        business_name: businessName.trim() || null,
-        address_street: addressStreet.trim(),
-        area_town: areaTown.trim() || null,
-        post_code: postCode.trim() || null,
-        latitude,
-        longitude,
-        category: spaceType,
-        aesthetics_room: aestheticsRoom,
-        cqc_registered_only: aestheticsRoom ? cqcRegisteredOnly : false,
-        cancellation_policy: cancellationPolicy,
-        min_booking_days: numeric,
-        amenities: selectedAmenities,
-        included_items: includedItems,
-        hourly_price: hourlyEnabled ? parsePrice(hourlyPrice) : null,
-        hourly_enabled: hourlyEnabled,
-        daily_price: dailyEnabled ? parsePrice(dailyPrice) : null,
-        daily_enabled: dailyEnabled,
-        weekly_price: weeklyEnabled ? parsePrice(weeklyPrice) : null,
-        weekly_enabled: weeklyEnabled,
-        monthly_price: monthlyEnabled ? parsePrice(monthlyPrice) : null,
-        monthly_enabled: monthlyEnabled,
-        available_days: dailyEnabled ? availableDays : [],
-        available_from: toISODate(startDate),
-        available_to: toISODate(endDate),
-        instant_booking: instantBooking,
-      })
-      .select('id')
-      .single();
+    const placeFields = {
+      title: title.trim(),
+      about: about.trim() || null,
+      business_name: businessName.trim() || null,
+      address_street: addressStreet.trim(),
+      area_town: areaTown.trim() || null,
+      post_code: postCode.trim() || null,
+      latitude,
+      longitude,
+      category: spaceType,
+      aesthetics_room: aestheticsRoom,
+      cqc_registered_only: aestheticsRoom ? cqcRegisteredOnly : false,
+      cancellation_policy: cancellationPolicy,
+      min_booking_days: numeric,
+      amenities: selectedAmenities,
+      included_items: includedItems,
+      hourly_price: hourlyEnabled ? parsePrice(hourlyPrice) : null,
+      hourly_enabled: hourlyEnabled,
+      daily_price: dailyEnabled ? parsePrice(dailyPrice) : null,
+      daily_enabled: dailyEnabled,
+      weekly_price: weeklyEnabled ? parsePrice(weeklyPrice) : null,
+      weekly_enabled: weeklyEnabled,
+      monthly_price: monthlyEnabled ? parsePrice(monthlyPrice) : null,
+      monthly_enabled: monthlyEnabled,
+      available_days: dailyEnabled ? availableDays : [],
+      available_from: toISODate(startDate),
+      available_to: toISODate(endDate),
+      instant_booking: instantBooking,
+    };
 
-    if (insertError || !inserted) {
-      setSubmitting(false);
-      ToastAlert({ title: 'Could not add place', description: insertError?.message ?? 'Please try again.' });
-      return;
+    let targetPlaceId = placeId;
+
+    if (isEditing && targetPlaceId) {
+      const { error: updateError } = await supabase
+        .from('places')
+        .update(placeFields)
+        .eq('id', targetPlaceId);
+
+      if (updateError) {
+        setSubmitting(false);
+        ToastAlert({ title: 'Could not save changes', description: updateError.message });
+        return;
+      }
+    } else {
+      const { data: inserted, error: insertError } = await supabase
+        .from('places')
+        .insert({ host_id: hostId, ...placeFields })
+        .select('id')
+        .single();
+
+      if (insertError || !inserted) {
+        setSubmitting(false);
+        ToastAlert({ title: 'Could not add place', description: insertError?.message ?? 'Please try again.' });
+        return;
+      }
+      targetPlaceId = inserted.id as string;
     }
-
-    const placeId = inserted.id as string;
 
     const photoEntries = Object.entries(photos).filter(
       (entry): entry is [string, Asset] => !!entry[1],
@@ -445,9 +641,9 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
 
     for (let i = 0; i < photoEntries.length; i += 1) {
       const [slotKey, asset] = photoEntries[i];
-      const path = await uploadPlacePhoto(hostId, placeId, slotKey, asset);
+      const path = await uploadPlacePhoto(hostId, targetPlaceId as string, slotKey, asset);
       if (path) {
-        imageRows.push({ place_id: placeId, slot: SLOT_TO_DB[slotKey] ?? 'extra', path, sort_order: i });
+        imageRows.push({ place_id: targetPlaceId as string, slot: SLOT_TO_DB[slotKey] ?? 'extra', path, sort_order: i });
       }
     }
 
@@ -459,9 +655,31 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
     }
 
     setSubmitting(false);
-    ToastAlert({ title: 'Place added', description: 'Your space has been listed.' });
     navigation.goBack();
   };
+
+  if (loadingExisting) {
+    return (
+      <SafeAreaView style={styles.flex} edges={['top']}>
+        <StatusBar barStyle="dark-content" />
+        <View style={styles.header}>
+          <View style={styles.headerShadowStrip} />
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Image source={icons.back} style={styles.backIcon} resizeMode="contain" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Edit Place Details</Text>
+          <View style={styles.backButton} />
+        </View>
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="small" color={colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.flex} edges={['top']}>
@@ -476,11 +694,12 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
         >
           <Image source={icons.back} style={styles.backIcon} resizeMode="contain" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add New Place</Text>
+        <Text style={styles.headerTitle}>{isEditing ? 'Edit Place Details' : 'Add New Place'}</Text>
         <View style={styles.backButton} />
       </View>
 
       <ScrollView
+        ref={scrollRef}
         style={styles.flex}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -490,21 +709,32 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
         <View style={styles.photoGrid}>
           {PHOTO_SLOTS.map(slot => {
             const asset = photos[slot.key];
+            const existingImage = existingImages[slot.key];
+            const previewUri = asset?.uri ?? existingImage?.url;
+            const isRemoving = removingSlot === slot.key;
+
             return (
               <View key={slot.key} style={styles.photoSlot}>
-                {asset?.uri ? (
+                {previewUri ? (
                   <>
                     <Image
-                      source={{ uri: asset.uri }}
+                      source={{ uri: previewUri }}
                       style={styles.photoPreview}
                       resizeMode="cover"
                     />
                     <TouchableOpacity
                       activeOpacity={0.85}
                       style={styles.photoRemoveBadge}
-                      onPress={() => handleRemovePhoto(slot.key)}
+                      disabled={isRemoving}
+                      onPress={() =>
+                        asset ? handleRemovePhoto(slot.key) : handleRemoveExistingPhoto(slot.key)
+                      }
                     >
-                      <CloseIcon size={12} color={colors.red} />
+                      {isRemoving ? (
+                        <ActivityIndicator size="small" color={colors.red} />
+                      ) : (
+                        <CloseIcon size={12} color={colors.red} />
+                      )}
                     </TouchableOpacity>
                   </>
                 ) : (
@@ -862,11 +1092,22 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
         <View style={styles.dateRow}>
           <View style={styles.pricingField}>
             <Text style={styles.sectionLabel}>Start Date</Text>
-            <DateField value={startDate} onChange={setStartDate} placeholder="Select start date" />
+            <DateField
+              value={startDate}
+              onChange={handleStartDateChange}
+              placeholder="Select start date"
+              minimumDate={new Date()}
+            />
           </View>
           <View style={styles.pricingField}>
             <Text style={styles.sectionLabel}>End Date</Text>
-            <DateField value={endDate} onChange={setEndDate} placeholder="Select end date" />
+            <DateField
+              value={endDate}
+              onChange={setEndDate}
+              placeholder="Select end date"
+              minimumDate={parseDMY(startDate)}
+              maximumDate={addDays(parseDMY(startDate), MAX_AVAILABILITY_DAYS)}
+            />
           </View>
         </View>
 
@@ -899,7 +1140,7 @@ const AddNewPlaceScreen = ({ navigation }: AddNewPlaceScreenProps) => {
 
       <View style={styles.footer}>
         <CustomButton
-          title="Add Place"
+          title={isEditing ? 'Save Changes' : 'Add Place'}
           onPress={handleAddPlace}
           loader={submitting}
           disable={submitting}
@@ -915,6 +1156,11 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
     backgroundColor: colors.screenBgColor,
+  },
+  loadingWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   header: {
     flexDirection: 'row',

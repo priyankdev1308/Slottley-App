@@ -54,7 +54,7 @@ export type RootStackParamList = {
   MyCardsScreen: undefined;
   AddNewCardScreen: { onAdd: (card: SavedCard) => void };
   NotificationScreen: undefined;
-  AddNewPlaceScreen: undefined;
+  AddNewPlaceScreen: { placeId?: string } | undefined;
   HostPlaceDetailScreen: { spaceId?: string } | undefined;
   AddNewJobScreen: { jobId?: string } | undefined;
   HostJobDetailScreen: { jobId?: string } | undefined;
@@ -150,6 +150,7 @@ export interface TextInputProps {
 export interface CustomButtonProps {
   title: string;
   loader?: boolean;
+  loaderColor?: string;
   disable?: boolean;
   infoText?: string;
   isBottom?: boolean;
