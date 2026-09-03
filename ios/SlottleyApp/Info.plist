@@ -52,6 +52,8 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Slottley needs camera access so you can take a new profile photo.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Slottley uses your location to show spaces near you.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Slottley needs photo library access so you can choose a profile photo.</string>
 	<key>UIAppFonts</key>

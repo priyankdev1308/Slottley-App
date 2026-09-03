@@ -1,30 +1,71 @@
-import React, { useState } from 'react';
-import { View, Text, Image, StyleSheet, StatusBar, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import {
+  View,
+  Text,
+  Image,
+  StyleSheet,
+  StatusBar,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 
-import SpaceCard, { SpaceCardData } from '../components/SpaceCard';
+import SpaceCard from '../components/SpaceCard';
 import { icons } from '../../assets/icons';
-import { images } from '../../assets/images';
 import { colors } from '../utils/colors';
 import { headerShadow } from '../utils/shadows';
 import { fonts } from '../utils/fonts';
 import { hp, wp, fontSize } from '../helpers/responsive';
 import { WishlistScreenProps } from '../interface/screenTypes';
-
-const WISHLIST: SpaceCardData[] = [
-  { id: 'w1', title: 'Luxury Beauty Room', location: 'London — Bayswater', price: '£45', period: 'day', image: images.dummy2 },
-  { id: 'w2', title: 'Modern Barber Chair', location: 'London — Shoreditch', price: '£85', period: 'week', image: images.dummy3 },
-  { id: 'w3', title: 'Premium Nail Desk', location: 'Manchester — Didsbury', price: '£105', period: 'month', image: images.dummy1 },
-  { id: 'w4', title: 'Clinic Place', location: 'London — Bayswater', price: '£55', period: 'day', image: images.dummy2 },
-  { id: 'w5', title: 'Private Aesthetic Room', location: 'London — Bayswater', price: '£60', period: 'day', image: images.dummy1 },
-  { id: 'w6', title: 'Wellness Treatment Room', location: 'Nottingham — Wollaton', price: '£75', period: 'day', image: images.dummy2 },
-];
+import { MySpace } from '../api/places';
+import { fetchWishlistPlaces, removeFromWishlist } from '../api/wishlist';
+import { supabase } from '../api/supabaseClient';
 
 const WishlistScreen = ({ navigation }: WishlistScreenProps) => {
-  const [wishlist, setWishlist] = useState(WISHLIST);
+  const [wishlist, setWishlist] = useState<MySpace[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
 
-  const removeFromWishlist = (id: string) => {
-    setWishlist(prev => prev.filter(item => item.id !== id));
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      setLoading(true);
+
+      (async () => {
+        const { data } = await supabase.auth.getUser();
+        const uid = data.user?.id ?? null;
+        if (cancelled) return;
+        setUserId(uid);
+
+        if (!uid) {
+          setWishlist([]);
+          setLoading(false);
+          return;
+        }
+
+        const places = await fetchWishlistPlaces(uid);
+        if (!cancelled) {
+          setWishlist(places);
+          setLoading(false);
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
+
+  const handleRemove = async (placeId: string) => {
+    if (!userId) return;
+
+    const previous = wishlist;
+    setWishlist(prev => prev.filter(item => item.id !== placeId));
+
+    const ok = await removeFromWishlist(userId, placeId);
+    if (!ok) setWishlist(previous);
   };
 
   return (
@@ -44,23 +85,34 @@ const WishlistScreen = ({ navigation }: WishlistScreenProps) => {
         <View style={styles.backButton} />
       </View>
 
-      <ScrollView
-        style={styles.flex}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.grid}>
-          {wishlist.map(item => (
-            <SpaceCard
-              key={item.id}
-              data={item}
-              liked
-              style={styles.gridCard}
-              onToggleLike={() => removeFromWishlist(item.id)}
-            />
-          ))}
+      {loading ? (
+        <View style={styles.centerContent}>
+          <ActivityIndicator size="small" color={colors.primary} />
         </View>
-      </ScrollView>
+      ) : wishlist.length === 0 ? (
+        <View style={styles.centerContent}>
+          <Text style={styles.emptyText}>Your wishlist is empty.</Text>
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.grid}>
+            {wishlist.map(item => (
+              <SpaceCard
+                key={item.id}
+                data={item}
+                liked
+                style={styles.gridCard}
+                onToggleLike={() => handleRemove(item.id)}
+                onPress={() => navigation.navigate('PlaceDetailScreen', { spaceId: item.id })}
+              />
+            ))}
+          </View>
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 };
@@ -71,6 +123,16 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
     backgroundColor: colors.screenBgColor,
+  },
+  centerContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    color: colors.subText,
+    fontSize: fontSize(14),
+    fontFamily: fonts.Lato500,
   },
   header: {
     flexDirection: 'row',

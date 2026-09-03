@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,16 +7,20 @@ import {
   StyleSheet,
   StatusBar,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { icons } from '../../assets/icons';
 import SpaceCard from '../components/SpaceCard';
+import LocationPermissionGate from '../components/LocationPermissionGate';
 import { colors } from '../utils/colors';
 import { headerShadow } from '../utils/shadows';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp } from '../helpers/responsive';
-import { NEAR_YOU, FEATURED } from '../utils/spacesMockData';
+import { MySpace, fetchFeaturedPlaces, fetchNearbyPlaces } from '../api/places';
+import { useDeviceLocation } from '../hooks/useDeviceLocation';
+import { useWishlist } from '../hooks/useWishlist';
 import { SpaceListScreenProps } from '../interface/screenTypes';
 
 const TITLES = {
@@ -24,10 +28,66 @@ const TITLES = {
   featured: 'Featured spaces',
 };
 
+const LIST_PAGE_SIZE = 10;
+
 const SpaceListScreen = ({ navigation, route }: SpaceListScreenProps) => {
   const { listType } = route.params;
-  const data = listType === 'featured' ? FEATURED : NEAR_YOU;
-  const paddedData = data.length % 2 !== 0 ? [...data, null] : data;
+
+  const { status: locationStatus, coords, canAskAgain, requestLocation, handleGatePress } = useDeviceLocation();
+  const { isLiked, toggleLike } = useWishlist();
+  const [items, setItems] = useState<MySpace[]>([]);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingInitial, setLoadingInitial] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const loadPage = async (pageIndex: number, latitude?: number, longitude?: number) => {
+    if (listType === 'nearYou') {
+      if (latitude == null || longitude == null) return { rows: [], more: false };
+      return fetchNearbyPlaces(latitude, longitude, pageIndex, LIST_PAGE_SIZE);
+    }
+    return fetchFeaturedPlaces(pageIndex, LIST_PAGE_SIZE);
+  };
+
+  useEffect(() => {
+    (async () => {
+      setLoadingInitial(true);
+
+      let latitude: number | undefined;
+      let longitude: number | undefined;
+      if (listType === 'nearYou') {
+        const coords = await requestLocation();
+        if (!coords) {
+          setLoadingInitial(false);
+          return;
+        }
+        latitude = coords.latitude;
+        longitude = coords.longitude;
+      }
+
+      const { rows, more } = await loadPage(0, latitude, longitude);
+      setItems(rows);
+      setHasMore(more);
+      setPage(0);
+      setLoadingInitial(false);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listType]);
+
+  const handleLoadMore = async () => {
+    if (loadingMore || !hasMore) return;
+    if (listType === 'nearYou' && (locationStatus !== 'granted' || !coords)) return;
+
+    setLoadingMore(true);
+    const nextPage = page + 1;
+    const { rows, more } = await loadPage(nextPage, coords?.latitude, coords?.longitude);
+    setItems(prev => [...prev, ...rows]);
+    setHasMore(more);
+    setPage(nextPage);
+    setLoadingMore(false);
+  };
+
+  const showLocationGate = listType === 'nearYou' && locationStatus === 'denied';
 
   return (
     <SafeAreaView style={styles.flex} edges={['top']}>
@@ -48,25 +108,42 @@ const SpaceListScreen = ({ navigation, route }: SpaceListScreenProps) => {
         <View style={styles.backButton} />
       </View>
 
-      <FlatList
-        data={paddedData}
-        keyExtractor={(item, index) => item?.id ?? `placeholder-${index}`}
-        numColumns={2}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
-        columnWrapperStyle={styles.row}
-        renderItem={({ item }) =>
-          item ? (
+      {showLocationGate ? (
+        <LocationPermissionGate canAskAgain={canAskAgain} onPress={handleGatePress} />
+      ) : loadingInitial ? (
+        <View style={styles.centerContent}>
+          <ActivityIndicator size="small" color={colors.primary} />
+        </View>
+      ) : items.length === 0 ? (
+        <View style={styles.centerContent}>
+          <Text style={styles.emptyText}>No spaces found.</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={items}
+          keyExtractor={item => item.id}
+          numColumns={2}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.content}
+          columnWrapperStyle={styles.row}
+          onEndReachedThreshold={0.4}
+          onEndReached={handleLoadMore}
+          ListFooterComponent={
+            loadingMore ? (
+              <ActivityIndicator size="small" color={colors.primary} style={styles.listLoader} />
+            ) : null
+          }
+          renderItem={({ item }) => (
             <SpaceCard
               data={item}
               style={styles.card}
+              liked={isLiked(item.id)}
+              onToggleLike={() => toggleLike(item.id)}
               onPress={() => navigation.navigate('PlaceDetailScreen', { spaceId: item.id })}
             />
-          ) : (
-            <View style={styles.card} />
-          )
-        }
-      />
+          )}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -126,7 +203,20 @@ const styles = StyleSheet.create({
     gap: wp(14),
   },
   card: {
+    width: '48%',
+  },
+  listLoader: {
+    marginTop: hp(20),
+  },
+  centerContent: {
     flex: 1,
-    width: undefined,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: colors.subText,
+    fontSize: fontSize(14),
+    fontFamily: fonts.Lato500,
   },
 });

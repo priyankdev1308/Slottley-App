@@ -13,12 +13,31 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import RangeSlider from '../components/RangeSlider';
+import DateField, { formatDate } from '../components/DateField';
 import { icons } from '../../assets/icons';
 import { colors } from '../utils/colors';
 import { headerShadow } from '../utils/shadows';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp } from '../helpers/responsive';
 import { FilterScreenProps } from '../interface/screenTypes';
+
+// Parses our DD/MM/YYYY display format back into a Date, falling back to
+// today when the field is empty or holds something unparseable.
+const parseDMY = (ddmmyyyy: string): Date => {
+  const match = ddmmyyyy.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!match) return new Date();
+  const [, day, month, year] = match;
+  const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+};
+
+const addDays = (date: Date, days: number) => {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+};
+
+const MIN_AVAILABILITY_GAP_DAYS = 30;
 
 interface SpaceCategory {
   key: string;
@@ -91,13 +110,11 @@ const CATEGORY_ROWS: SpaceCategory[][] = (() => {
 const DURATIONS = ['Hourly', 'Daily', 'Weekly', 'Monthly'];
 
 const PRICE_MIN = 0;
-const PRICE_MAX = 100;
+const PRICE_MAX = 1000;
 
-const DEFAULT_PRICE_RANGE: [number, number] = [12, 85];
+const DEFAULT_PRICE_RANGE: [number, number] = [100, 580];
 const DEFAULT_CATEGORY = 'aesthetics';
 const DEFAULT_DURATION = 'Weekly';
-const DEFAULT_START_DATE = '15/12/2026';
-const DEFAULT_END_DATE = '21/12/2026';
 
 const FilterScreen = ({ navigation }: FilterScreenProps) => {
   const [priceRange, setPriceRange] = useState<[number, number]>(DEFAULT_PRICE_RANGE);
@@ -105,15 +122,32 @@ const FilterScreen = ({ navigation }: FilterScreenProps) => {
   const [category, setCategory] = useState(DEFAULT_CATEGORY);
   const [cqcOnly, setCqcOnly] = useState(true);
   const [duration, setDuration] = useState(DEFAULT_DURATION);
-  const [startDate] = useState(DEFAULT_START_DATE);
-  const [endDate] = useState(DEFAULT_END_DATE);
+  const [startDate, setStartDate] = useState(() => formatDate(new Date()));
+  const [endDate, setEndDate] = useState(() =>
+    formatDate(addDays(new Date(), MIN_AVAILABILITY_GAP_DAYS)),
+  );
+
+  // Keeps the End Date pinned at least 30 days after the Start Date whenever
+  // the Start Date moves — the DateField's own minimumDate only stops new
+  // picks, it can't retroactively fix a value that's now too close.
+  const handleStartDateChange = (formatted: string) => {
+    setStartDate(formatted);
+
+    const newStart = parseDMY(formatted);
+    const newMinEnd = addDays(newStart, MIN_AVAILABILITY_GAP_DAYS);
+    if (parseDMY(endDate) < newMinEnd) {
+      setEndDate(formatDate(newMinEnd));
+    }
+  };
 
   const handleClear = () => {
-    setPriceRange(DEFAULT_PRICE_RANGE);
+    setPriceRange([PRICE_MIN, PRICE_MAX]);
     setPostCode('');
     setCategory('all');
     setCqcOnly(false);
     setDuration(DEFAULT_DURATION);
+    setStartDate(formatDate(new Date()));
+    setEndDate(formatDate(addDays(new Date(), MIN_AVAILABILITY_GAP_DAYS)));
   };
 
   return (
@@ -181,7 +215,12 @@ const FilterScreen = ({ navigation }: FilterScreenProps) => {
                       isSelected && styles.categoryCardSelected,
                     ]}
                   >
-                    <View style={styles.categoryRow}>
+                    <View
+                      style={[
+                        styles.categoryRow,
+                        item.key === 'all' && styles.categoryRowCentered,
+                      ]}
+                    >
                       <View
                         style={[
                           styles.categoryTextCol,
@@ -247,17 +286,21 @@ const FilterScreen = ({ navigation }: FilterScreenProps) => {
         <View style={styles.dateRow}>
           <View style={styles.dateCol}>
             <Text style={styles.dateLabel}>Start Date</Text>
-            <TouchableOpacity activeOpacity={0.8} style={styles.dateInput}>
-              <Text style={styles.dateValue}>{startDate}</Text>
-              <Image source={icons.calendar} style={styles.calendarIcon} resizeMode="contain" />
-            </TouchableOpacity>
+            <DateField
+              value={startDate}
+              onChange={handleStartDateChange}
+              placeholder="Select start date"
+              minimumDate={new Date()}
+            />
           </View>
           <View style={styles.dateCol}>
             <Text style={styles.dateLabel}>End Date</Text>
-            <TouchableOpacity activeOpacity={0.8} style={styles.dateInput}>
-              <Text style={styles.dateValue}>{endDate}</Text>
-              <Image source={icons.calendar} style={styles.calendarIcon} resizeMode="contain" />
-            </TouchableOpacity>
+            <DateField
+              value={endDate}
+              onChange={setEndDate}
+              placeholder="Select end date"
+              minimumDate={addDays(parseDMY(startDate), MIN_AVAILABILITY_GAP_DAYS)}
+            />
           </View>
         </View>
       </ScrollView>
@@ -388,6 +431,10 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
   },
+  categoryRowCentered: {
+    flex: 1,
+    alignItems: 'center',
+  },
   categoryTextColCentered: {
     alignItems: 'center',
   },
@@ -398,7 +445,7 @@ const styles = StyleSheet.create({
   categoryTitle: {
     color: colors.black,
     fontSize: fontSize(14),
-    fontFamily: fonts.Lato700,
+    fontFamily: fonts.Lato500,
   },
   categoryDescription: {
     marginTop: hp(4),
@@ -451,7 +498,7 @@ const styles = StyleSheet.create({
   durationText: {
     color: colors.black,
     fontSize: fontSize(14),
-    fontFamily: fonts.Lato700,
+    fontFamily: fonts.Lato500,
   },
   dateRow: {
     flexDirection: 'row',
@@ -465,26 +512,6 @@ const styles = StyleSheet.create({
     color: colors.black,
     fontSize: fontSize(14),
     fontFamily: fonts.Lato700,
-  },
-  dateInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    height: hp(52),
-    paddingHorizontal: wp(14),
-    borderRadius: wp(14),
-    backgroundColor: colors.textPlaceHolderColor,
-    borderWidth: 1,
-    borderColor: colors.textPlaceHolderColor,
-  },
-  dateValue: {
-    color: colors.darkGray,
-    fontSize: fontSize(14),
-    fontFamily: fonts.Lato400,
-  },
-  calendarIcon: {
-    width: wp(18),
-    height: wp(18),
   },
   footer: {
     flexDirection: 'row',

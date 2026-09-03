@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -7,10 +7,13 @@ import {
   StatusBar,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
+  ImageSourcePropType,
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import MapView, { Circle } from 'react-native-maps';
 
 import CustomButton from '../components/CustomButton';
@@ -18,61 +21,64 @@ import ReadMoreText from '../components/ReadMoreText';
 import AddReviewModal from '../components/AddReviewModal';
 import ToastAlert from '../components/ToastAlert';
 import { icons } from '../../assets/icons';
-import { images } from '../../assets/images';
 import { colors } from '../utils/colors';
 import { headerShadow } from '../utils/shadows';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, screenWidth, wp } from '../helpers/responsive';
 import { PlaceDetailScreenProps } from '../interface/screenTypes';
+import { MySpace, HostSummary, fetchPlaceById, fetchHostSummary } from '../api/places';
+import { useWishlist } from '../hooks/useWishlist';
 
-// Mock data standing in for the listing/host/review API responses.
-const GALLERY = [images.dummy2, images.dummy1, images.dummy3];
-
-const AMENITIES = [
-  { key: 'wifi', label: 'Wi-Fi', icon: icons.wifi },
-  { key: 'mirror', label: 'Mirror', icon: icons.mirror },
-  { key: 'music', label: 'Music System', icon: icons.music },
-  { key: 'light', label: 'Natural Light', icon: icons.light },
-  { key: 'fan', label: 'Fan & AC', icon: icons.fan },
-];
-
-const INCLUDED = ['Shampoo', 'Electricity', 'Use of Equipment', 'Towels', 'Tea & Coffee'];
+const AMENITY_ICONS: Record<string, ImageSourcePropType> = {
+  'Wi-Fi': icons.wifi,
+  Mirror: icons.mirror,
+  'Music System': icons.music,
+  'Fan & AC': icons.fan,
+  Lights: icons.light,
+  Towels: icons.towel,
+};
 
 const BOOKING_OPTIONS = ['Hourly', 'Daily', 'Weekly', 'Monthly'];
 
-const REVIEWS = [
-  {
-    id: 'r1',
-    name: 'David Joseph',
-    time: '3h',
-    rating: 4,
-    text: 'Lovely space with everything I needed. The room was clean, comfortable and well equipped.',
-  },
-  {
-    id: 'r2',
-    name: 'Emily Johnson',
-    time: '3h',
-    rating: 3,
-    text: 'Great location and a professional setup. Would definitely book this space again.',
-  },
-];
+const PlaceDetailScreen = ({ navigation, route }: PlaceDetailScreenProps) => {
+  const spaceId = route.params?.spaceId;
 
-// Bayswater, London — stand-in coordinates for the mock "London- Bayswater" address.
-const LOCATION = { latitude: 51.5142, longitude: -0.1879 };
-
-const Stars = ({ count }: { count: number }) => (
-  <View style={styles.starsRow}>
-    {Array.from({ length: count }).map((_, i) => (
-      <Image key={i} source={icons.star} style={styles.starIcon} resizeMode="contain" />
-    ))}
-  </View>
-);
-
-const PlaceDetailScreen = ({ navigation }: PlaceDetailScreenProps) => {
-  const [liked, setLiked] = useState(false);
+  const [space, setSpace] = useState<MySpace | null>(null);
+  const [host, setHost] = useState<HostSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const { isLiked, toggleLike } = useWishlist();
   const [activeImage, setActiveImage] = useState(0);
   const [bookingFor, setBookingFor] = useState('Hourly');
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      setLoading(true);
+
+      (async () => {
+        if (!spaceId) {
+          setLoading(false);
+          return;
+        }
+        const result = await fetchPlaceById(spaceId);
+        if (cancelled) return;
+        setSpace(result);
+        setLoading(false);
+
+        if (result) {
+          const hostResult = await fetchHostSummary(result.hostId);
+          if (!cancelled) setHost(hostResult);
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    }, [spaceId]),
+  );
+
+  const gallery = space?.gallery ?? [];
 
   const handleSubmitReview = (rating: number, text: string) => {
     // TODO: persist to a reviews table once one exists — for now just
@@ -85,6 +91,39 @@ const PlaceDetailScreen = ({ navigation }: PlaceDetailScreenProps) => {
     const index = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
     setActiveImage(index);
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.flex} edges={['top']}>
+        <StatusBar barStyle="dark-content" />
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="small" color={colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!space) {
+    return (
+      <SafeAreaView style={styles.flex} edges={['top']}>
+        <StatusBar barStyle="dark-content" />
+        <View style={styles.header}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Image source={icons.back} style={styles.backIcon} resizeMode="contain" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Place Detail</Text>
+          <View style={styles.backButton} />
+        </View>
+        <View style={styles.loadingWrap}>
+          <Text style={styles.emptyText}>This space could not be found.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.flex} edges={['top']}>
@@ -100,10 +139,14 @@ const PlaceDetailScreen = ({ navigation }: PlaceDetailScreenProps) => {
           <Image source={icons.back} style={styles.backIcon} resizeMode="contain" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Place Detail</Text>
-        <TouchableOpacity activeOpacity={0.8} onPress={() => setLiked(v => !v)}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => toggleLike(space.id)}
+          style={[styles.likeButton, isLiked(space.id) && styles.likeButtonActive]}
+        >
           <Image
-            source={icons.likeBlack}
-            style={[styles.likeIcon, liked && { tintColor: colors.red }]}
+            source={isLiked(space.id) ? icons.like : icons.unlike}
+            style={styles.likeIcon}
             resizeMode="contain"
           />
         </TouchableOpacity>
@@ -116,14 +159,14 @@ const PlaceDetailScreen = ({ navigation }: PlaceDetailScreenProps) => {
           showsHorizontalScrollIndicator={false}
           onMomentumScrollEnd={onGalleryScroll}
         >
-          {GALLERY.map((image, index) => (
+          {gallery.map((image, index) => (
             <View key={index} style={styles.galleryPage}>
               <Image source={image} style={styles.galleryImage} resizeMode="cover" />
             </View>
           ))}
         </ScrollView>
         <View style={styles.dotsRow}>
-          {GALLERY.map((_, index) => (
+          {gallery.map((_, index) => (
             <View
               key={index}
               style={[styles.dot, index === activeImage && styles.dotActive]}
@@ -133,71 +176,92 @@ const PlaceDetailScreen = ({ navigation }: PlaceDetailScreenProps) => {
 
         <View style={styles.content}>
           <View style={styles.titleRow}>
-            <Text style={styles.title}>Luxury Beauty Room</Text>
+            <Text style={styles.title}>{space.title}</Text>
             <Text style={styles.price}>
-              £45/ <Text style={styles.pricePeriod}>day</Text>
+              {space.price}/ <Text style={styles.pricePeriod}>{space.period}</Text>
             </Text>
           </View>
 
           <View style={styles.metaRow}>
             <View style={styles.metaItem}>
               <Image source={icons.mapPin} style={styles.metaIcon} resizeMode="contain" />
-              <Text style={styles.metaText}>London — Shoreditch</Text>
+              <Text style={styles.metaText}>{space.location}</Text>
             </View>
             <View style={styles.metaItem}>
               <Image source={icons.star} style={styles.metaIcon} resizeMode="contain" />
-              <Text style={styles.metaText}>4.8 (100 reviews)</Text>
+              <Text style={styles.metaText}>
+                {space.rating} ({space.reviewCount} reviews)
+              </Text>
             </View>
           </View>
 
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>Instant Booking Available</Text>
-          </View>
+          {space.instantBooking && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>Instant Booking Available</Text>
+            </View>
+          )}
 
-          <View style={styles.cqcNotice}>
-            <Text style={styles.cqcNoticeTitle}>ⓘ CQC Registered ✓</Text>
-            <Text style={styles.cqcNoticeText}>
-              CQC registration status is self-declared by the host and verified by Slottley
-              against the public register where indicated. Absence of this badge does not imply
-              non-compliance. Practitioners are responsible for confirming a space meets
-              requirements for their specific treatments.
-            </Text>
-          </View>
+          {space.cqcRegistered && (
+            <View style={styles.cqcNotice}>
+              <Text style={styles.cqcNoticeTitle}>ⓘ CQC Registered ✓</Text>
+              <Text style={styles.cqcNoticeText}>
+                CQC registration status is self-declared by the host and verified by Slottley
+                against the public register where indicated. Absence of this badge does not imply
+                non-compliance. Practitioners are responsible for confirming a space meets
+                requirements for their specific treatments.
+              </Text>
+            </View>
+          )}
 
           <View style={styles.divider} />
 
           <Text style={styles.sectionLabel}>About This Space</Text>
-          <ReadMoreText
-            text="A luxurious private beauty room perfect for hairstylists, beauticians, and wellness professionals. Modern setup with premium amenities in a prime location.
-            Known for resolving specific hair issues like frizzy hair treatments and precise hair cutting.Highly praised stylists include Akash, Dharsan Bhai, Ganesh, and Dishang.Offers an premium environment for men, women, and children."
-            numberOfLines={3}
-            style={styles.aboutText}
-            linkStyle={styles.readMore}
-          />
+          {space.description ? (
+            <ReadMoreText
+              text={space.description}
+              numberOfLines={3}
+              style={styles.aboutText}
+              linkStyle={styles.readMore}
+            />
+          ) : (
+            <Text style={styles.emptyText}>No description added.</Text>
+          )}
 
           <View style={styles.divider} />
 
           <Text style={styles.sectionLabel}>Amenities</Text>
-          <View style={styles.amenitiesRow}>
-            {AMENITIES.map(item => (
-              <View key={item.key} style={styles.amenityItem}>
-                <Image source={item.icon} style={styles.amenityIcon} resizeMode="contain" />
-                <Text style={styles.amenityLabel}>{item.label}</Text>
-              </View>
-            ))}
-          </View>
+          {space.amenities.length > 0 ? (
+            <View style={styles.amenitiesRow}>
+              {space.amenities.map(label => (
+                <View key={label} style={styles.amenityItem}>
+                  <Image
+                    source={AMENITY_ICONS[label] ?? icons.checkGreen}
+                    style={styles.amenityIcon}
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.amenityLabel}>{label}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.emptyText}>No amenities added.</Text>
+          )}
 
           <View style={styles.divider} />
 
           <Text style={styles.sectionLabel}>What’s Included</Text>
-          <View style={styles.includedRow}>
-            {INCLUDED.map(item => (
-              <View key={item} style={styles.includedChip}>
-                <Image source={icons.checkGreen} style={styles.includedIcon} resizeMode="contain" />
-                <Text style={styles.includedLabel}>{item}</Text>
-              </View>
-            ))}
-          </View>
+          {space.includedItems.length > 0 ? (
+            <View style={styles.includedRow}>
+              {space.includedItems.map(item => (
+                <View key={item} style={styles.includedChip}>
+                  <Image source={icons.checkGreen} style={styles.includedIcon} resizeMode="contain" />
+                  <Text style={styles.includedLabel}>{item}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.emptyText}>Nothing added yet.</Text>
+          )}
 
           <View style={styles.divider} />
 
@@ -205,44 +269,54 @@ const PlaceDetailScreen = ({ navigation }: PlaceDetailScreenProps) => {
           <View style={styles.hostRow}>
             <View style={styles.hostAvatar}>
               <Image
-                source={icons.tabProfile}
-                style={styles.hostAvatarIcon}
-                resizeMode="contain"
+                source={host?.avatarUrl ? { uri: host.avatarUrl } : icons.tabProfile}
+                style={host?.avatarUrl ? styles.hostAvatarPhoto : styles.hostAvatarIcon}
+                resizeMode={host?.avatarUrl ? 'cover' : 'contain'}
               />
             </View>
-            <Text style={styles.hostName}>kenzi lawson</Text>
-            <TouchableOpacity activeOpacity={0.8}>
+            <Text style={styles.hostName}>{host?.name ?? 'Host'}</Text>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() =>
+                navigation.navigate('ChatDetailScreen', {
+                  contactId: space.hostId,
+                  name: host?.name ?? 'Host',
+                })
+              }
+            >
               <Image source={icons.chat} style={styles.chatIcon} resizeMode="contain" />
             </TouchableOpacity>
           </View>
 
           <Text style={styles.sectionLabel}>Location</Text>
           <View style={styles.locationBox}>
-            <Text style={styles.locationText}>London — Bayswater</Text>
+            <Text style={styles.locationText}>{space.location}</Text>
           </View>
-          <View style={styles.mapWrap}>
-            <MapView
-              style={styles.map}
-              initialRegion={{
-                latitude: LOCATION.latitude,
-                longitude: LOCATION.longitude,
-                latitudeDelta: 0.01,
-                longitudeDelta: 0.01,
-              }}
-              scrollEnabled={false}
-              zoomEnabled={false}
-              pitchEnabled={false}
-              rotateEnabled={false}
-            >
-              <Circle
-                center={LOCATION}
-                radius={300}
-                strokeColor={colors.primary}
-                strokeWidth={2}
-                fillColor="rgba(21,53,41,0.15)"
-              />
-            </MapView>
-          </View>
+          {space.latitude != null && space.longitude != null && (
+            <View style={styles.mapWrap}>
+              <MapView
+                style={styles.map}
+                initialRegion={{
+                  latitude: space.latitude,
+                  longitude: space.longitude,
+                  latitudeDelta: 0.01,
+                  longitudeDelta: 0.01,
+                }}
+                scrollEnabled={false}
+                zoomEnabled={false}
+                pitchEnabled={false}
+                rotateEnabled={false}
+              >
+                <Circle
+                  center={{ latitude: space.latitude, longitude: space.longitude }}
+                  radius={300}
+                  strokeColor={colors.primary}
+                  strokeWidth={2}
+                  fillColor="rgba(21,53,41,0.15)"
+                />
+              </MapView>
+            </View>
+          )}
 
           <Text style={styles.sectionLabel}>Booking For</Text>
           <View style={styles.bookingRow}>
@@ -267,34 +341,8 @@ const PlaceDetailScreen = ({ navigation }: PlaceDetailScreenProps) => {
 
           <View style={styles.reviewsHeader}>
             <Text style={styles.sectionLabel}>Reviews</Text>
-            <TouchableOpacity activeOpacity={0.8} style={styles.viewAllRow}>
-              <Text style={styles.viewAll}>View All</Text>
-              <Image source={icons.arrow} style={styles.viewAllArrow} resizeMode="contain" />
-            </TouchableOpacity>
           </View>
-
-          {REVIEWS.map((review, index) => (
-            <View key={review.id}>
-              <View style={styles.reviewRow}>
-                <View style={styles.reviewAvatar}>
-                  <Image
-                    source={icons.tabProfile}
-                    style={styles.reviewAvatarIcon}
-                    resizeMode="contain"
-                  />
-                </View>
-                <View style={styles.reviewTextCol}>
-                  <View style={styles.reviewNameRow}>
-                    <Text style={styles.reviewName}>{review.name}</Text>
-                    <Text style={styles.reviewTime}>{review.time}</Text>
-                  </View>
-                  <Stars count={review.rating} />
-                  <Text style={styles.reviewText}>{review.text}</Text>
-                </View>
-              </View>
-              {index < REVIEWS.length - 1 && <View style={styles.divider} />}
-            </View>
-          ))}
+          <Text style={styles.emptyText}>No reviews yet.</Text>
 
           <TouchableOpacity
             activeOpacity={0.85}
@@ -308,6 +356,7 @@ const PlaceDetailScreen = ({ navigation }: PlaceDetailScreenProps) => {
             title="Book Instantly"
             onPress={() =>
               navigation.navigate('BookPlaceScreen', {
+                spaceId: space.id,
                 mode:
                   bookingFor === 'Weekly'
                     ? 'weekly'
@@ -336,6 +385,16 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
     backgroundColor: colors.screenBgColor,
+  },
+  loadingWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    color: colors.subText,
+    fontSize: fontSize(13.5),
+    fontFamily: fonts.Lato400,
   },
   header: {
     flexDirection: 'row',
@@ -373,9 +432,19 @@ const styles = StyleSheet.create({
     fontFamily: fonts.Lato600,
     fontWeight: 600
   },
+  likeButton: {
+    width: wp(40),
+    height: wp(40),
+    borderRadius: wp(20),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  likeButtonActive: {
+    backgroundColor: colors.primary,
+  },
   likeIcon: {
-    width: wp(36),
-    height: wp(36),
+    width: wp(22),
+    height: wp(22),
   },
   galleryPage: {
     width: screenWidth,
@@ -566,6 +635,11 @@ const styles = StyleSheet.create({
     width: wp(22),
     height: wp(22),
     tintColor: colors.subText,
+  },
+  hostAvatarPhoto: {
+    width: '100%',
+    height: '100%',
+    borderRadius: wp(20),
   },
   hostName: {
     flex: 1,

@@ -15,6 +15,8 @@ export interface MySpace {
   image: ImageSourcePropType;
   gallery: ImageSourcePropType[];
   imagePaths: string[];
+  latitude: number | null;
+  longitude: number | null;
   cqcRegistered?: boolean;
   category: string;
   categoryHint: string;
@@ -24,6 +26,8 @@ export interface MySpace {
   description: string;
   amenities: string[];
   includedItems: string[];
+  hostId: string;
+  instantBooking: boolean;
 }
 
 interface PlaceImageRow {
@@ -32,11 +36,13 @@ interface PlaceImageRow {
   sort_order: number;
 }
 
-interface PlaceRow {
+export interface PlaceRow {
   id: string;
   title: string;
   address_street: string | null;
   area_town: string | null;
+  latitude: number | null;
+  longitude: number | null;
   category: string;
   cqc_registered_only: boolean;
   status: 'Active' | 'Inactive';
@@ -51,13 +57,15 @@ interface PlaceRow {
   weekly_enabled: boolean;
   monthly_price: number | null;
   monthly_enabled: boolean;
+  host_id: string;
+  instant_booking: boolean;
   place_images: PlaceImageRow[] | null;
 }
 
 export const PLACES_SELECT =
-  'id, title, address_street, area_town, category, cqc_registered_only, status, about, amenities, included_items, ' +
+  'id, title, address_street, area_town, latitude, longitude, category, cqc_registered_only, status, about, amenities, included_items, ' +
   'hourly_price, hourly_enabled, daily_price, daily_enabled, weekly_price, weekly_enabled, ' +
-  'monthly_price, monthly_enabled, place_images(path, slot, sort_order)';
+  'monthly_price, monthly_enabled, host_id, instant_booking, place_images(path, slot, sort_order)';
 
 // First enabled tier wins, in this display-priority order.
 const PRICE_TIERS: Array<{
@@ -65,11 +73,11 @@ const PRICE_TIERS: Array<{
   priceKey: keyof PlaceRow;
   period: string;
 }> = [
-  { enabledKey: 'daily_enabled', priceKey: 'daily_price', period: 'day' },
-  { enabledKey: 'hourly_enabled', priceKey: 'hourly_price', period: 'hour' },
-  { enabledKey: 'weekly_enabled', priceKey: 'weekly_price', period: 'week' },
-  { enabledKey: 'monthly_enabled', priceKey: 'monthly_price', period: 'month' },
-];
+    { enabledKey: 'daily_enabled', priceKey: 'daily_price', period: 'day' },
+    { enabledKey: 'hourly_enabled', priceKey: 'hourly_price', period: 'hour' },
+    { enabledKey: 'weekly_enabled', priceKey: 'weekly_price', period: 'week' },
+    { enabledKey: 'monthly_enabled', priceKey: 'monthly_price', period: 'month' },
+  ];
 
 export const mapPlaceRow = (row: PlaceRow): MySpace => {
   const tier = PRICE_TIERS.find(t => row[t.enabledKey]);
@@ -79,8 +87,8 @@ export const mapPlaceRow = (row: PlaceRow): MySpace => {
   const imagePaths = sortedImages.map(img => img.path);
   const gallery: ImageSourcePropType[] = imagePaths.length
     ? imagePaths.map(path => ({
-        uri: supabase.storage.from(PLACE_IMAGE_BUCKET).getPublicUrl(path).data.publicUrl,
-      }))
+      uri: supabase.storage.from(PLACE_IMAGE_BUCKET).getPublicUrl(path).data.publicUrl,
+    }))
     : [images.dummy1];
 
   const categoryInfo = PLACE_CATEGORIES.find(c => c.key === row.category);
@@ -94,6 +102,8 @@ export const mapPlaceRow = (row: PlaceRow): MySpace => {
     image: gallery[0],
     gallery,
     imagePaths,
+    latitude: row.latitude,
+    longitude: row.longitude,
     cqcRegistered: row.cqc_registered_only,
     category: categoryInfo?.title ?? row.category,
     categoryHint: categoryInfo?.description ?? '',
@@ -103,6 +113,8 @@ export const mapPlaceRow = (row: PlaceRow): MySpace => {
     description: row.about ?? '',
     amenities: row.amenities ?? [],
     includedItems: row.included_items ?? [],
+    hostId: row.host_id,
+    instantBooking: row.instant_booking,
   };
 };
 
@@ -111,6 +123,30 @@ export const fetchPlaceById = async (id: string): Promise<MySpace | null> => {
 
   if (error || !data) return null;
   return mapPlaceRow(data as unknown as PlaceRow);
+};
+
+export interface HostSummary {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+}
+
+export const fetchHostSummary = async (hostId: string): Promise<HostSummary | null> => {
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, first_name, sur_name, profile_image')
+    .eq('id', hostId)
+    .single();
+
+  if (error || !data) return null;
+
+  return {
+    id: data.id,
+    name: [data.first_name, data.sur_name].filter(Boolean).join(' ') || 'Host',
+    avatarUrl: data.profile_image
+      ? supabase.storage.from('profile_images').getPublicUrl(data.profile_image).data.publicUrl
+      : null,
+  };
 };
 
 export interface EditablePlaceImage {
@@ -267,6 +303,86 @@ export const fetchHostPlacesPage = async (
   }
 
   const { data, error } = await query.order('created_at', { ascending: false }).range(from, to);
+
+  if (error || !data) return { rows: [], more: false };
+
+  return {
+    rows: (data as unknown as PlaceRow[]).map(mapPlaceRow),
+    more: data.length === pageSize,
+  };
+};
+
+// Renter-facing "Featured spaces" — no ratings system exists yet, so newest
+// listings first stands in for it; swap the order() below once real ratings
+// land, no other change needed.
+export const fetchFeaturedPlaces = async (
+  pageIndex: number,
+  pageSize: number,
+): Promise<{ rows: MySpace[]; more: boolean }> => {
+  const from = pageIndex * pageSize;
+  const to = from + pageSize - 1;
+
+  const { data, error } = await supabase
+    .from('places')
+    .select(PLACES_SELECT)
+    .eq('status', 'Active')
+    .order('created_at', { ascending: false })
+    .range(from, to);
+
+  if (error || !data) return { rows: [], more: false };
+
+  return {
+    rows: (data as unknown as PlaceRow[]).map(mapPlaceRow),
+    more: data.length === pageSize,
+  };
+};
+
+// Renter-facing Home screen search box — matches on title only (no
+// description/location full-text search set up), newest first.
+export const searchPlaces = async (
+  query: string,
+  pageIndex: number,
+  pageSize: number,
+): Promise<{ rows: MySpace[]; more: boolean }> => {
+  const from = pageIndex * pageSize;
+  const to = from + pageSize - 1;
+
+  const { data, error } = await supabase
+    .from('places')
+    .select(PLACES_SELECT)
+    .eq('status', 'Active')
+    .ilike('title', `%${query}%`)
+    .order('created_at', { ascending: false })
+    .range(from, to);
+
+  if (error || !data) return { rows: [], more: false };
+
+  return {
+    rows: (data as unknown as PlaceRow[]).map(mapPlaceRow),
+    more: data.length === pageSize,
+  };
+};
+
+const NEARBY_RADIUS_MILES = 100;
+
+// Renter-facing "Spaces Near You" — distance filtering, sorting, and
+// pagination all happen in the `nearby_places` RPC (plain Haversine trig,
+// no PostGIS extension set up), so this only needs to map the rows it gets back.
+export const fetchNearbyPlaces = async (
+  latitude: number,
+  longitude: number,
+  pageIndex: number,
+  pageSize: number,
+): Promise<{ rows: MySpace[]; more: boolean }> => {
+  const { data, error } = await supabase
+    .rpc('nearby_places', {
+      lat: latitude,
+      lng: longitude,
+      radius_miles: NEARBY_RADIUS_MILES,
+      page_limit: pageSize,
+      page_offset: pageIndex * pageSize,
+    })
+    .select(PLACES_SELECT);
 
   if (error || !data) return { rows: [], more: false };
 

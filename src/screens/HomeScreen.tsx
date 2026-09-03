@@ -8,12 +8,16 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import SpaceCard from '../components/SpaceCard';
 import CqcInfoModal from '../components/CqcInfoModal';
+import LocationPermissionGate from '../components/LocationPermissionGate';
+import { CloseIcon } from '../components/icons/CardIcons';
 import { icons } from '../../assets/icons';
 import { colors } from '../utils/colors';
 import { headerShadow } from '../utils/shadows';
@@ -22,14 +26,31 @@ import { fontSize, hp, wp } from '../helpers/responsive';
 import { supabase } from '../api/supabaseClient';
 import { getGreeting } from '../helpers/globalFunctions';
 import { useProfileAvatarUrl } from '../hooks/useProfileAvatarUrl';
+import { useDeviceLocation } from '../hooks/useDeviceLocation';
+import { useWishlist } from '../hooks/useWishlist';
+import { MySpace, fetchFeaturedPlaces, fetchNearbyPlaces, searchPlaces } from '../api/places';
 import { MainTabScreenProps } from '../navigation/TabNav';
-import { NEAR_YOU, FEATURED } from '../utils/spacesMockData';
 
 const CQC_INFO_SEEN_KEY_PREFIX = 'cqc_info_seen_';
+const HOME_PREVIEW_COUNT = 5;
+const SEARCH_PAGE_SIZE = 20;
 
 const HomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
   const [cqcModalVisible, setCqcModalVisible] = useState(false);
   const avatarUrl = useProfileAvatarUrl();
+
+  const { status: locationStatus, coords, canAskAgain, requestLocation, handleGatePress } = useDeviceLocation();
+  const { isLiked, toggleLike } = useWishlist();
+  const [nearYou, setNearYou] = useState<MySpace[]>([]);
+  const [loadingNearYou, setLoadingNearYou] = useState(false);
+  const [featured, setFeatured] = useState<MySpace[]>([]);
+  const [loadingFeatured, setLoadingFeatured] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [searchResults, setSearchResults] = useState<MySpace[]>([]);
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -44,6 +65,74 @@ const HomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
       }
     })();
   }, []);
+
+  const loadFeatured = async () => {
+    const { rows } = await fetchFeaturedPlaces(0, HOME_PREVIEW_COUNT);
+    setFeatured(rows);
+  };
+
+  const loadNearYou = async (latitude: number, longitude: number) => {
+    const { rows } = await fetchNearbyPlaces(latitude, longitude, 0, HOME_PREVIEW_COUNT);
+    setNearYou(rows);
+  };
+
+  useEffect(() => {
+    (async () => {
+      setLoadingFeatured(true);
+      await loadFeatured();
+      setLoadingFeatured(false);
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      const position = await requestLocation();
+      if (!position) return;
+
+      setLoadingNearYou(true);
+      await loadNearYou(position.latitude, position.longitude);
+      setLoadingNearYou(false);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Debounces the search box so it doesn't re-query on every keystroke.
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery.trim()), 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (!debouncedSearch) {
+      setSearchResults([]);
+      return;
+    }
+
+    let cancelled = false;
+    setSearching(true);
+
+    (async () => {
+      const { rows } = await searchPlaces(debouncedSearch, 0, SEARCH_PAGE_SIZE);
+      if (!cancelled) {
+        setSearchResults(rows);
+        setSearching(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedSearch]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    const tasks = [loadFeatured()];
+    if (locationStatus === 'granted' && coords) {
+      tasks.push(loadNearYou(coords.latitude, coords.longitude));
+    }
+    await Promise.all(tasks);
+    setRefreshing(false);
+  };
 
   return (
     <View style={styles.flex}>
@@ -83,10 +172,22 @@ const HomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
             resizeMode="contain"
           />
           <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
             placeholder="Type to search..."
             placeholderTextColor={colors.placeHolder}
             style={styles.searchInput}
           />
+          {!!searchQuery && (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              onPress={() => setSearchQuery('')}
+              style={styles.searchClearButton}
+            >
+              <CloseIcon size={14} color={colors.subText} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={() => navigation.navigate('FilterScreen')}
@@ -100,52 +201,103 @@ const HomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
         style={styles.flex}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
       >
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Spaces Near You</Text>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => navigation.navigate('SpaceListScreen', { listType: 'nearYou' })}
-          >
-            <Text style={styles.viewAll}>View All</Text>
-          </TouchableOpacity>
-        </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.cardRow}
-        >
-          {NEAR_YOU.map(item => (
-            <SpaceCard
-              key={item.id}
-              data={item}
-              onPress={() => navigation.navigate('PlaceDetailScreen', { spaceId: item.id })}
-            />
-          ))}
-        </ScrollView>
+        {debouncedSearch ? (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Search Results</Text>
+            </View>
+            {searching ? (
+              <ActivityIndicator size="small" color={colors.primary} style={styles.sectionLoader} />
+            ) : searchResults.length === 0 ? (
+              <Text style={styles.emptyText}>No spaces match "{debouncedSearch}".</Text>
+            ) : (
+              <View style={styles.searchGrid}>
+                {searchResults.map(item => (
+                  <SpaceCard
+                    key={item.id}
+                    data={item}
+                    style={styles.searchGridCard}
+                    liked={isLiked(item.id)}
+                    onToggleLike={() => toggleLike(item.id)}
+                    onPress={() => navigation.navigate('PlaceDetailScreen', { spaceId: item.id })}
+                  />
+                ))}
+              </View>
+            )}
+          </>
+        ) : (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Spaces Near You</Text>
+              {locationStatus === 'granted' && (
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => navigation.navigate('SpaceListScreen', { listType: 'nearYou' })}
+                >
+                  <Text style={styles.viewAll}>View All</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            {locationStatus === 'denied' ? (
+              <LocationPermissionGate canAskAgain={canAskAgain} onPress={handleGatePress} />
+            ) : locationStatus === 'loading' || loadingNearYou ? (
+              <ActivityIndicator size="small" color={colors.primary} style={styles.sectionLoader} />
+            ) : nearYou.length === 0 ? (
+              <Text style={styles.emptyText}>No spaces found near you yet.</Text>
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.cardRow}
+              >
+                {nearYou.map(item => (
+                  <SpaceCard
+                    key={item.id}
+                    data={item}
+                    liked={isLiked(item.id)}
+                    onToggleLike={() => toggleLike(item.id)}
+                    onPress={() => navigation.navigate('PlaceDetailScreen', { spaceId: item.id })}
+                  />
+                ))}
+              </ScrollView>
+            )}
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Featured spaces</Text>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => navigation.navigate('SpaceListScreen', { listType: 'featured' })}
-          >
-            <Text style={styles.viewAll}>View All</Text>
-          </TouchableOpacity>
-        </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.cardRow}
-        >
-          {FEATURED.map(item => (
-            <SpaceCard
-              key={item.id}
-              data={item}
-              onPress={() => navigation.navigate('PlaceDetailScreen', { spaceId: item.id })}
-            />
-          ))}
-        </ScrollView>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Featured spaces</Text>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate('SpaceListScreen', { listType: 'featured' })}
+              >
+                <Text style={styles.viewAll}>View All</Text>
+              </TouchableOpacity>
+            </View>
+            {loadingFeatured ? (
+              <ActivityIndicator size="small" color={colors.primary} style={styles.sectionLoader} />
+            ) : featured.length === 0 ? (
+              <Text style={styles.emptyText}>No spaces available yet.</Text>
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.cardRow}
+              >
+                {featured.map(item => (
+                  <SpaceCard
+                    key={item.id}
+                    data={item}
+                    liked={isLiked(item.id)}
+                    onToggleLike={() => toggleLike(item.id)}
+                    onPress={() => navigation.navigate('PlaceDetailScreen', { spaceId: item.id })}
+                  />
+                ))}
+              </ScrollView>
+            )}
+          </>
+        )}
       </ScrollView>
 
       <CqcInfoModal visible={cqcModalVisible} onClose={() => setCqcModalVisible(false)} />
@@ -242,6 +394,9 @@ const styles = StyleSheet.create({
     fontSize: fontSize(14.5),
     fontFamily: fonts.Lato400,
   },
+  searchClearButton: {
+    marginRight: wp(10),
+  },
   searchDivider: {
     width: 1,
     height: hp(22),
@@ -278,5 +433,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: wp(20),
     gap: wp(14),
     marginBottom: hp(28),
+  },
+  searchGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: wp(20),
+  },
+  searchGridCard: {
+    width: '48%',
+    marginBottom: hp(16),
+  },
+  sectionLoader: {
+    marginBottom: hp(28),
+  },
+  emptyText: {
+    paddingHorizontal: wp(20),
+    marginBottom: hp(28),
+    color: colors.subText,
+    fontSize: fontSize(13.5),
+    fontFamily: fonts.Lato400,
   },
 });
