@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -38,7 +38,17 @@ const AMENITY_ICONS: Record<string, ImageSourcePropType> = {
   Towels: icons.towel,
 };
 
-const BOOKING_OPTIONS = ['Hourly', 'Daily', 'Weekly', 'Monthly'];
+// Only the durations the host actually priced & enabled are bookable —
+// a tier with no price (or price 0) never shows as an option.
+const getBookingOptions = (space: MySpace): string[] =>
+  [
+    { key: 'Hourly', available: space.hourlyEnabled && !!space.hourlyPrice },
+    { key: 'Daily', available: space.dailyEnabled && !!space.dailyPrice },
+    { key: 'Weekly', available: space.weeklyEnabled && !!space.weeklyPrice },
+    { key: 'Monthly', available: space.monthlyEnabled && !!space.monthlyPrice },
+  ]
+    .filter(tier => tier.available)
+    .map(tier => tier.key);
 
 const PlaceDetailScreen = ({ navigation, route }: PlaceDetailScreenProps) => {
   const spaceId = route.params?.spaceId;
@@ -79,6 +89,18 @@ const PlaceDetailScreen = ({ navigation, route }: PlaceDetailScreenProps) => {
   );
 
   const gallery = space?.gallery ?? [];
+
+  // Whenever the loaded space's bookable durations change, make sure the
+  // current selection is actually one of them (e.g. a place with only Daily
+  // priced shouldn't stay stuck on the default "Hourly").
+  useEffect(() => {
+    if (!space) return;
+    const available = getBookingOptions(space);
+    if (available.length > 0 && !available.includes(bookingFor)) {
+      setBookingFor(available[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [space]);
 
   const handleSubmitReview = (rating: number, text: string) => {
     // TODO: persist to a reviews table once one exists — for now just
@@ -125,6 +147,8 @@ const PlaceDetailScreen = ({ navigation, route }: PlaceDetailScreenProps) => {
     );
   }
 
+  const bookingOptions = getBookingOptions(space);
+
   return (
     <SafeAreaView style={styles.flex} edges={['top']}>
       <StatusBar barStyle="dark-content" />
@@ -142,10 +166,10 @@ const PlaceDetailScreen = ({ navigation, route }: PlaceDetailScreenProps) => {
         <TouchableOpacity
           activeOpacity={0.8}
           onPress={() => toggleLike(space.id)}
-          style={[styles.likeButton, isLiked(space.id) && styles.likeButtonActive]}
+          style={styles.likeButton}
         >
           <Image
-            source={isLiked(space.id) ? icons.like : icons.unlike}
+            source={isLiked(space.id) ? icons.wishlist : icons.likeBlack}
             style={styles.likeIcon}
             resizeMode="contain"
           />
@@ -318,26 +342,30 @@ const PlaceDetailScreen = ({ navigation, route }: PlaceDetailScreenProps) => {
             </View>
           )}
 
-          <Text style={styles.sectionLabel}>Booking For</Text>
-          <View style={styles.bookingRow}>
-            {BOOKING_OPTIONS.map(option => {
-              const isSelected = bookingFor === option;
-              return (
-                <TouchableOpacity
-                  key={option}
-                  activeOpacity={0.85}
-                  onPress={() => setBookingFor(option)}
-                  style={[styles.bookingPill, isSelected && styles.bookingPillSelected]}
-                >
-                  <Text
-                    style={[styles.bookingText, isSelected && styles.bookingTextSelected]}
-                  >
-                    {option}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          {bookingOptions.length > 0 && (
+            <>
+              <Text style={styles.sectionLabel}>Booking For</Text>
+              <View style={styles.bookingRow}>
+                {bookingOptions.map(option => {
+                  const isSelected = bookingFor === option;
+                  return (
+                    <TouchableOpacity
+                      key={option}
+                      activeOpacity={0.85}
+                      onPress={() => setBookingFor(option)}
+                      style={[styles.bookingPill, isSelected && styles.bookingPillSelected]}
+                    >
+                      <Text
+                        style={[styles.bookingText, isSelected && styles.bookingTextSelected]}
+                      >
+                        {option}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
+          )}
 
           <View style={styles.reviewsHeader}>
             <Text style={styles.sectionLabel}>Reviews</Text>
@@ -439,12 +467,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  likeButtonActive: {
-    backgroundColor: colors.primary,
-  },
   likeIcon: {
-    width: wp(22),
-    height: wp(22),
+    width: wp(30),
+    height: wp(30),
   },
   galleryPage: {
     width: screenWidth,

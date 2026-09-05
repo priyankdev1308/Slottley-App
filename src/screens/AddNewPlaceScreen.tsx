@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { launchCamera, launchImageLibrary, Asset } from 'react-native-image-picker';
@@ -76,6 +77,10 @@ const addDays = (date: Date, days: number) => {
 };
 
 const MAX_AVAILABILITY_DAYS = 30;
+
+// TODO: swap for the real Terms & Conditions URL once one exists — this is
+// just a placeholder so the link is wired up and testable end-to-end.
+const TERMS_URL = 'https://www.google.com';
 
 const parsePrice = (value: string): number | null => {
   const numeric = parseFloat(value.replace(/[^0-9.]/g, ''));
@@ -944,6 +949,7 @@ const AddNewPlaceScreen = ({ navigation, route }: AddNewPlaceScreenProps) => {
           placeholder="Enter post code"
           placeholderTextColor={colors.placeHolder}
           autoCapitalize="characters"
+          maxLength={10}
           style={styles.input}
         />
 
@@ -1132,8 +1138,11 @@ const AddNewPlaceScreen = ({ navigation, route }: AddNewPlaceScreenProps) => {
             <View style={styles.termsCheckboxEmpty} />
           )}
           <Text style={styles.termsText}>
-            I agree to Slottley's <Text style={styles.termsLink}>Terms & Conditions</Text> and
-            confirm that the information provided is accurate
+            I agree to Slottley's{' '}
+            <Text style={styles.termsLink} onPress={() => Linking.openURL(TERMS_URL)}>
+              Terms & Conditions
+            </Text>{' '}
+            and confirm that the information provided is accurate
           </Text>
         </TouchableOpacity>
       </ScrollView>

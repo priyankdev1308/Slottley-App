@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     bottom: -8,          // sits just below the header
     left: 0,
     right: 0,
-    height: 8,
+    height: 3,
     backgroundColor: colors.screenBgColor,
     ...headerShadow,
   },

@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: wp(16),
+    paddingHorizontal: wp(20),
     paddingVertical: hp(14),
     backgroundColor: colors.screenBgColor,
     height: hp(64),
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
     bottom: -8,          // sits just below the header
     left: 0,
     right: 0,
-    height: 8,
+    height: 3,
     backgroundColor: colors.screenBgColor,
     ...headerShadow,
   },

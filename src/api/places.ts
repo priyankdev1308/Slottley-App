@@ -28,6 +28,14 @@ export interface MySpace {
   includedItems: string[];
   hostId: string;
   instantBooking: boolean;
+  hourlyPrice: number | null;
+  hourlyEnabled: boolean;
+  dailyPrice: number | null;
+  dailyEnabled: boolean;
+  weeklyPrice: number | null;
+  weeklyEnabled: boolean;
+  monthlyPrice: number | null;
+  monthlyEnabled: boolean;
 }
 
 interface PlaceImageRow {
@@ -73,8 +81,8 @@ const PRICE_TIERS: Array<{
   priceKey: keyof PlaceRow;
   period: string;
 }> = [
-    { enabledKey: 'daily_enabled', priceKey: 'daily_price', period: 'day' },
     { enabledKey: 'hourly_enabled', priceKey: 'hourly_price', period: 'hour' },
+    { enabledKey: 'daily_enabled', priceKey: 'daily_price', period: 'day' },
     { enabledKey: 'weekly_enabled', priceKey: 'weekly_price', period: 'week' },
     { enabledKey: 'monthly_enabled', priceKey: 'monthly_price', period: 'month' },
   ];
@@ -115,6 +123,14 @@ export const mapPlaceRow = (row: PlaceRow): MySpace => {
     includedItems: row.included_items ?? [],
     hostId: row.host_id,
     instantBooking: row.instant_booking,
+    hourlyPrice: row.hourly_price,
+    hourlyEnabled: row.hourly_enabled,
+    dailyPrice: row.daily_price,
+    dailyEnabled: row.daily_enabled,
+    weeklyPrice: row.weekly_price,
+    weeklyEnabled: row.weekly_enabled,
+    monthlyPrice: row.monthly_price,
+    monthlyEnabled: row.monthly_enabled,
   };
 };
 

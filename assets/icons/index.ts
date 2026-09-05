@@ -76,4 +76,5 @@ export const icons = {
   addRound: require('./ic_add_round.png'),
   bank: require('./ic_bank.png'),
   towel: require('./ic_towel.png'),
+  favorite: require('./ic_favorite.png'),
 };

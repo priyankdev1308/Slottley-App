@@ -88,7 +88,9 @@ const NotificationScreen = ({ navigation }: NotificationScreenProps) => {
         <View style={styles.backButton} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}>
         {NOTIFICATIONS.map(item => (
           <View
             key={item.id}
@@ -134,7 +136,7 @@ const styles = StyleSheet.create({
     bottom: -8,          // sits just below the header
     left: 0,
     right: 0,
-    height: 8,
+    height: 3,
     backgroundColor: colors.screenBgColor,
     ...headerShadow,
   },
@@ -156,6 +158,9 @@ const styles = StyleSheet.create({
     color: colors.black,
     fontSize: fontSize(20),
     fontFamily: fonts.Lato600,
+  },
+  scrollContent: {
+    paddingTop: hp(20),
   },
   row: {
     flexDirection: 'row',

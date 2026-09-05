@@ -192,6 +192,7 @@ const FilterScreen = ({ navigation }: FilterScreenProps) => {
             onChangeText={setPostCode}
             placeholder="Post Code"
             placeholderTextColor={colors.placeHolder}
+            maxLength={10}
             style={styles.locationInput}
           />
           <TouchableOpacity activeOpacity={0.8}>
