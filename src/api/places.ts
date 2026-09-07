@@ -379,6 +379,71 @@ export const searchPlaces = async (
   };
 };
 
+export type FilterDuration = 'Hourly' | 'Daily' | 'Weekly' | 'Monthly';
+
+export interface PlaceFilters {
+  minPrice: number;
+  maxPrice: number;
+  category: string;
+  cqcOnly: boolean;
+  duration: FilterDuration;
+  // ISO (YYYY-MM-DD) — the renter's desired availability window.
+  startDate: string;
+  endDate: string;
+}
+
+const DURATION_TIER_PREFIX: Record<FilterDuration, string> = {
+  Hourly: 'hourly',
+  Daily: 'daily',
+  Weekly: 'weekly',
+  Monthly: 'monthly',
+};
+
+// Renter-facing Home screen "Apply" from the Filter screen — a place matches
+// only if it offers the selected duration (Hourly/Daily/Weekly/Monthly) with
+// a price inside the chosen range, same tier pinning as "Booking For" on
+// Place Detail.
+export const fetchFilteredPlaces = async (
+  filters: PlaceFilters,
+  pageIndex: number,
+  pageSize: number,
+): Promise<{ rows: MySpace[]; more: boolean }> => {
+  const from = pageIndex * pageSize;
+  const to = from + pageSize - 1;
+
+  const tier = DURATION_TIER_PREFIX[filters.duration];
+
+  // Overlap check — the place's own availability window (set by the host)
+  // just needs to overlap the renter's requested range at all, not fully
+  // contain it. Places that never set an availability window (null columns)
+  // are naturally excluded, since comparing against null is never true.
+  let query = supabase
+    .from('places')
+    .select(PLACES_SELECT)
+    .eq('status', 'Active')
+    .eq(`${tier}_enabled`, true)
+    .gte(`${tier}_price`, filters.minPrice)
+    .lte(`${tier}_price`, filters.maxPrice)
+    .lte('available_from', filters.endDate)
+    .gte('available_to', filters.startDate);
+
+  if (filters.category !== 'all') {
+    query = query.eq('category', filters.category);
+  }
+  if (filters.cqcOnly) {
+    query = query.eq('cqc_registered_only', true);
+  }
+
+  const { data, error } = await query.order('created_at', { ascending: false }).range(from, to);
+
+  if (error || !data) return { rows: [], more: false };
+
+  return {
+    rows: (data as unknown as PlaceRow[]).map(mapPlaceRow),
+    more: data.length === pageSize,
+  };
+};
+
 const NEARBY_RADIUS_MILES = 100;
 
 // Renter-facing "Spaces Near You" — distance filtering, sorting, and

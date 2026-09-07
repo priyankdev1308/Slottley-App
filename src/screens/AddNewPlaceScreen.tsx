@@ -76,7 +76,9 @@ const addDays = (date: Date, days: number) => {
   return next;
 };
 
-const MAX_AVAILABILITY_DAYS = 30;
+// No longer an enforced ceiling on End Date — just the default gap used to
+// seed it initially and to repair it if Start Date moves past it.
+const DEFAULT_AVAILABILITY_GAP_DAYS = 30;
 
 // TODO: swap for the real Terms & Conditions URL once one exists — this is
 // just a placeholder so the link is wired up and testable end-to-end.
@@ -228,7 +230,7 @@ const AddNewPlaceScreen = ({ navigation, route }: AddNewPlaceScreenProps) => {
   const [monthlyEnabled, setMonthlyEnabled] = useState(false);
 
   const [startDate, setStartDate] = useState(() => formatDate(new Date()));
-  const [endDate, setEndDate] = useState(() => formatDate(addDays(new Date(), MAX_AVAILABILITY_DAYS)));
+  const [endDate, setEndDate] = useState(() => formatDate(addDays(new Date(), DEFAULT_AVAILABILITY_GAP_DAYS)));
 
   const [instantBooking, setInstantBooking] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
@@ -315,18 +317,17 @@ const AddNewPlaceScreen = ({ navigation, route }: AddNewPlaceScreenProps) => {
     );
   };
 
-  // Keeps the End Date pinned within [start, start + 30 days] whenever the
-  // Start Date moves — the DateField's own min/max only stops new picks,
-  // it can't retroactively fix a value that's now out of range.
+  // End Date has no upper bound — any future date is fine — but it can never
+  // sit before Start Date. If moving Start Date pushes it past the current
+  // End Date, bump End Date forward by the default gap to repair it; the
+  // DateField's own minimumDate only stops new picks, it can't retroactively
+  // fix a value that's now invalid.
   const handleStartDateChange = (formatted: string) => {
     setStartDate(formatted);
 
     const newStart = parseDMY(formatted);
-    const newMaxEnd = addDays(newStart, MAX_AVAILABILITY_DAYS);
-    const currentEnd = parseDMY(endDate);
-
-    if (currentEnd < newStart || currentEnd > newMaxEnd) {
-      setEndDate(formatDate(newMaxEnd));
+    if (parseDMY(endDate) < newStart) {
+      setEndDate(formatDate(addDays(newStart, DEFAULT_AVAILABILITY_GAP_DAYS)));
     }
   };
 
@@ -538,6 +539,11 @@ const AddNewPlaceScreen = ({ navigation, route }: AddNewPlaceScreenProps) => {
 
     if (!addressStreet.trim()) {
       ToastAlert({ title: 'Address required', description: 'Please search and select your address.' });
+      return;
+    }
+
+    if (!postCode.trim()) {
+      ToastAlert({ title: 'Postcode required', description: 'Please enter your address postcode.' });
       return;
     }
 
@@ -1112,7 +1118,6 @@ const AddNewPlaceScreen = ({ navigation, route }: AddNewPlaceScreenProps) => {
               onChange={setEndDate}
               placeholder="Select end date"
               minimumDate={parseDMY(startDate)}
-              maximumDate={addDays(parseDMY(startDate), MAX_AVAILABILITY_DAYS)}
             />
           </View>
         </View>

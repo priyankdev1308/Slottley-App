@@ -60,6 +60,10 @@ const PlaceDetailScreen = ({ navigation, route }: PlaceDetailScreenProps) => {
   const [activeImage, setActiveImage] = useState(0);
   const [bookingFor, setBookingFor] = useState('Hourly');
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [loadedImages, setLoadedImages] = useState<Record<number, boolean>>({});
+
+  const markImageLoaded = (index: number) =>
+    setLoadedImages(prev => (prev[index] ? prev : { ...prev, [index]: true }));
 
   useFocusEffect(
     useCallback(() => {
@@ -74,6 +78,7 @@ const PlaceDetailScreen = ({ navigation, route }: PlaceDetailScreenProps) => {
         const result = await fetchPlaceById(spaceId);
         if (cancelled) return;
         setSpace(result);
+        setLoadedImages({});
         setLoading(false);
 
         if (result) {
@@ -185,7 +190,20 @@ const PlaceDetailScreen = ({ navigation, route }: PlaceDetailScreenProps) => {
         >
           {gallery.map((image, index) => (
             <View key={index} style={styles.galleryPage}>
-              <Image source={image} style={styles.galleryImage} resizeMode="cover" />
+              <View style={styles.galleryImageWrap}>
+                <Image
+                  source={image}
+                  style={styles.galleryImage}
+                  resizeMode="cover"
+                  onLoadEnd={() => markImageLoaded(index)}
+                  onError={() => markImageLoaded(index)}
+                />
+                {!loadedImages[index] && (
+                  <View style={styles.galleryLoader}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  </View>
+                )}
+              </View>
             </View>
           ))}
         </ScrollView>
@@ -476,10 +494,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: wp(20),
     paddingTop: hp(15)
   },
+  galleryImageWrap: {
+    position: 'relative',
+  },
   galleryImage: {
     width: '100%',
     height: hp(230),
     borderRadius: wp(14),
+  },
+  galleryLoader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: wp(14),
+    backgroundColor: colors.lightGrayF5F5F5,
   },
   dotsRow: {
     flexDirection: 'row',
@@ -674,8 +706,8 @@ const styles = StyleSheet.create({
     fontFamily: fonts.Lato700,
   },
   chatIcon: {
-    width: wp(36),
-    height: wp(36),
+    width: wp(30),
+    height: wp(30),
   },
   locationBox: {
     height: hp(54),

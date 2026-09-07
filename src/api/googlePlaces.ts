@@ -2,6 +2,7 @@ import { GOOGLE_MAP_PLACES_KEY } from '@env';
 
 const AUTOCOMPLETE_URL = 'https://maps.googleapis.com/maps/api/place/autocomplete/json';
 const DETAILS_URL = 'https://maps.googleapis.com/maps/api/place/details/json';
+const GEOCODE_URL = 'https://maps.googleapis.com/maps/api/geocode/json';
 
 export interface PlacePrediction {
   placeId: string;
@@ -76,4 +77,38 @@ export const fetchPlaceDetails = async (placeId: string): Promise<PlaceDetailsRe
     latitude: lat,
     longitude: lng,
   };
+};
+
+// Reverse geocodes device coordinates down to just the postal code, for the
+// "Use Current Location" shortcut on the Filter screen's post code field.
+// No `result_type` filter here — the most specific result for a precise GPS
+// coordinate is usually a street_address/premise (not a result whose own
+// primary type is "postal_code"), but it still carries a postal_code among
+// its address_components, so we scan every returned result for one.
+export const fetchPostCodeFromCoords = async (
+  latitude: number,
+  longitude: number,
+): Promise<string | null> => {
+  if (!GOOGLE_MAP_PLACES_KEY) return null;
+
+  const params = new URLSearchParams({
+    latlng: `${latitude},${longitude}`,
+    key: GOOGLE_MAP_PLACES_KEY,
+  });
+
+  const response = await fetch(`${GEOCODE_URL}?${params.toString()}`);
+  const json = await response.json();
+
+  if (json.status !== 'OK' || !json.results?.length) {
+    if (json.status !== 'OK') {
+      console.warn('[fetchPostCodeFromCoords] Geocoding API error:', json.status, json.error_message);
+    }
+    return null;
+  }
+
+  for (const result of json.results) {
+    const postCode = findComponent(result.address_components ?? [], 'postal_code');
+    if (postCode) return postCode;
+  }
+  return null;
 };

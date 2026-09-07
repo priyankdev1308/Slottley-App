@@ -9,16 +9,21 @@ import {
   TextInput,
   Switch,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import RangeSlider from '../components/RangeSlider';
 import DateField, { formatDate } from '../components/DateField';
+import ToastAlert from '../components/ToastAlert';
 import { icons } from '../../assets/icons';
 import { colors } from '../utils/colors';
 import { headerShadow } from '../utils/shadows';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp } from '../helpers/responsive';
+import { fetchPostCodeFromCoords } from '../api/googlePlaces';
+import { FilterDuration } from '../api/places';
+import { useDeviceLocation } from '../hooks/useDeviceLocation';
 import { FilterScreenProps } from '../interface/screenTypes';
 
 // Parses our DD/MM/YYYY display format back into a Date, falling back to
@@ -29,6 +34,13 @@ const parseDMY = (ddmmyyyy: string): Date => {
   const [, day, month, year] = match;
   const parsed = new Date(Number(year), Number(month) - 1, Number(day));
   return Number.isNaN(parsed.getTime()) ? new Date() : parsed;
+};
+
+const toISODate = (ddmmyyyy: string): string => {
+  const match = ddmmyyyy.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!match) return ddmmyyyy;
+  const [, day, month, year] = match;
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 };
 
 const addDays = (date: Date, days: number) => {
@@ -114,9 +126,9 @@ const PRICE_MAX = 1000;
 
 const DEFAULT_PRICE_RANGE: [number, number] = [100, 580];
 const DEFAULT_CATEGORY = 'aesthetics';
-const DEFAULT_DURATION = 'Weekly';
+const DEFAULT_DURATION = 'Hourly';
 
-const FilterScreen = ({ navigation }: FilterScreenProps) => {
+const FilterScreen = ({ navigation, route }: FilterScreenProps) => {
   const [priceRange, setPriceRange] = useState<[number, number]>(DEFAULT_PRICE_RANGE);
   const [postCode, setPostCode] = useState('');
   const [category, setCategory] = useState(DEFAULT_CATEGORY);
@@ -126,6 +138,32 @@ const FilterScreen = ({ navigation }: FilterScreenProps) => {
   const [endDate, setEndDate] = useState(() =>
     formatDate(addDays(new Date(), MIN_AVAILABILITY_GAP_DAYS)),
   );
+  const [resolvingLocation, setResolvingLocation] = useState(false);
+  const { requestLocation } = useDeviceLocation();
+
+  const handleUseCurrentLocation = async () => {
+    setResolvingLocation(true);
+    const coords = await requestLocation();
+    if (!coords) {
+      setResolvingLocation(false);
+      ToastAlert({
+        title: 'Location unavailable',
+        description: 'Enable location access to use your current location.',
+      });
+      return;
+    }
+
+    const postcode = await fetchPostCodeFromCoords(coords.latitude, coords.longitude);
+    setResolvingLocation(false);
+    if (postcode) {
+      setPostCode(postcode);
+    } else {
+      ToastAlert({
+        title: 'Could not find a post code',
+        description: 'Please enter your post code manually.',
+      });
+    }
+  };
 
   // Keeps the End Date pinned at least 30 days after the Start Date whenever
   // the Start Date moves — the DateField's own minimumDate only stops new
@@ -148,6 +186,7 @@ const FilterScreen = ({ navigation }: FilterScreenProps) => {
     setDuration(DEFAULT_DURATION);
     setStartDate(formatDate(new Date()));
     setEndDate(formatDate(addDays(new Date(), MIN_AVAILABILITY_GAP_DAYS)));
+    route.params?.onApply?.(null);
   };
 
   return (
@@ -195,8 +234,16 @@ const FilterScreen = ({ navigation }: FilterScreenProps) => {
             maxLength={10}
             style={styles.locationInput}
           />
-          <TouchableOpacity activeOpacity={0.8}>
-            <Text style={styles.useLocation}>Use Current Location</Text>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={handleUseCurrentLocation}
+            disabled={resolvingLocation}
+          >
+            {resolvingLocation ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Text style={styles.useLocation}>Use Current Location</Text>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -313,7 +360,18 @@ const FilterScreen = ({ navigation }: FilterScreenProps) => {
         <TouchableOpacity
           activeOpacity={0.85}
           style={styles.applyButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => {
+            route.params?.onApply?.({
+              minPrice: priceRange[0],
+              maxPrice: priceRange[1],
+              category,
+              cqcOnly,
+              duration: duration as FilterDuration,
+              startDate: toISODate(startDate),
+              endDate: toISODate(endDate),
+            });
+            navigation.goBack();
+          }}
         >
           <Text style={styles.applyText}>Apply</Text>
         </TouchableOpacity>

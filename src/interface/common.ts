@@ -7,6 +7,7 @@ import {
   KeyboardTypeOptions,
 } from "react-native";
 import type { SpaceRole, MainTabParamList } from "../navigation/TabNav";
+import type { PlaceFilters } from "../api/places";
 
 export interface SavedCard {
   id: string;
@@ -34,7 +35,7 @@ export type RootStackParamList = {
         };
       }
     | undefined;
-  FilterScreen: undefined;
+  FilterScreen: { onApply?: (filters: PlaceFilters | null) => void } | undefined;
   PlaceDetailScreen: { spaceId?: string } | undefined;
   SpaceListScreen: { listType: "nearYou" | "featured" };
   BookPlaceScreen: { mode: "single" | "weekly" | "monthly"; spaceId?: string };

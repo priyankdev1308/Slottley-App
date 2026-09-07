@@ -28,7 +28,14 @@ import { getGreeting } from '../helpers/globalFunctions';
 import { useProfileAvatarUrl } from '../hooks/useProfileAvatarUrl';
 import { useDeviceLocation } from '../hooks/useDeviceLocation';
 import { useWishlist } from '../hooks/useWishlist';
-import { MySpace, fetchFeaturedPlaces, fetchNearbyPlaces, searchPlaces } from '../api/places';
+import {
+  MySpace,
+  PlaceFilters,
+  fetchFeaturedPlaces,
+  fetchNearbyPlaces,
+  searchPlaces,
+  fetchFilteredPlaces,
+} from '../api/places';
 import { MainTabScreenProps } from '../navigation/TabNav';
 
 const CQC_INFO_SEEN_KEY_PREFIX = 'cqc_info_seen_';
@@ -51,6 +58,10 @@ const HomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [searchResults, setSearchResults] = useState<MySpace[]>([]);
   const [searching, setSearching] = useState(false);
+
+  const [activeFilters, setActiveFilters] = useState<PlaceFilters | null>(null);
+  const [filteredResults, setFilteredResults] = useState<MySpace[]>([]);
+  const [loadingFiltered, setLoadingFiltered] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -124,6 +135,28 @@ const HomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
     };
   }, [debouncedSearch]);
 
+  useEffect(() => {
+    if (!activeFilters) {
+      setFilteredResults([]);
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingFiltered(true);
+
+    (async () => {
+      const { rows } = await fetchFilteredPlaces(activeFilters, 0, SEARCH_PAGE_SIZE);
+      if (!cancelled) {
+        setFilteredResults(rows);
+        setLoadingFiltered(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeFilters]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     const tasks = [loadFeatured()];
@@ -190,7 +223,7 @@ const HomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
           )}
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => navigation.navigate('FilterScreen')}
+            onPress={() => navigation.navigate('FilterScreen', { onApply: setActiveFilters })}
           >
             <Image source={icons.filter} style={styles.filterIcon} resizeMode="contain" />
           </TouchableOpacity>
@@ -205,7 +238,34 @@ const HomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
       >
-        {debouncedSearch ? (
+        {activeFilters ? (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Filtered Results</Text>
+              <TouchableOpacity activeOpacity={0.8} onPress={() => setActiveFilters(null)}>
+                <Text style={styles.viewAll}>Clear</Text>
+              </TouchableOpacity>
+            </View>
+            {loadingFiltered ? (
+              <ActivityIndicator size="small" color={colors.primary} style={styles.sectionLoader} />
+            ) : filteredResults.length === 0 ? (
+              <Text style={styles.emptyText}>No spaces match these filters.</Text>
+            ) : (
+              <View style={styles.searchGrid}>
+                {filteredResults.map(item => (
+                  <SpaceCard
+                    key={item.id}
+                    data={item}
+                    style={styles.searchGridCard}
+                    liked={isLiked(item.id)}
+                    onToggleLike={() => toggleLike(item.id)}
+                    onPress={() => navigation.navigate('PlaceDetailScreen', { spaceId: item.id })}
+                  />
+                ))}
+              </View>
+            )}
+          </>
+        ) : debouncedSearch ? (
           <>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Search Results</Text>
