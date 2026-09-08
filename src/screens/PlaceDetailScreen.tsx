@@ -403,12 +403,7 @@ const PlaceDetailScreen = ({ navigation, route }: PlaceDetailScreenProps) => {
             onPress={() =>
               navigation.navigate('BookPlaceScreen', {
                 spaceId: space.id,
-                mode:
-                  bookingFor === 'Weekly'
-                    ? 'weekly'
-                    : bookingFor === 'Monthly'
-                      ? 'monthly'
-                      : 'single',
+                mode: bookingFor.toLowerCase() as 'hourly' | 'daily' | 'weekly' | 'monthly',
               })
             }
             buttonStyle={styles.bookButton}

@@ -390,6 +390,8 @@ export interface PlaceFilters {
   // ISO (YYYY-MM-DD) — the renter's desired availability window.
   startDate: string;
   endDate: string;
+  // Free-text post code — empty/omitted means no location restriction.
+  postCode?: string;
 }
 
 const DURATION_TIER_PREFIX: Record<FilterDuration, string> = {
@@ -401,16 +403,16 @@ const DURATION_TIER_PREFIX: Record<FilterDuration, string> = {
 
 // Renter-facing Home screen "Apply" from the Filter screen — a place matches
 // only if it offers the selected duration (Hourly/Daily/Weekly/Monthly) with
-// a price inside the chosen range, same tier pinning as "Booking For" on
-// Place Detail.
+// a price inside the chosen range (same tier pinning as "Booking For" on
+// Place Detail), its category/CQC status match (when set), its availability
+// window overlaps the requested dates, and — if a post code was entered —
+// its own post_code contains what was typed (a direct column match, not a
+// geocoded radius search — these are plain PIN codes, not full addresses).
 export const fetchFilteredPlaces = async (
   filters: PlaceFilters,
   pageIndex: number,
   pageSize: number,
 ): Promise<{ rows: MySpace[]; more: boolean }> => {
-  const from = pageIndex * pageSize;
-  const to = from + pageSize - 1;
-
   const tier = DURATION_TIER_PREFIX[filters.duration];
 
   // Overlap check — the place's own availability window (set by the host)
@@ -434,8 +436,16 @@ export const fetchFilteredPlaces = async (
     query = query.eq('cqc_registered_only', true);
   }
 
+  const postCode = filters.postCode?.trim();
+  if (postCode) {
+    query = query.ilike('post_code', `%${postCode}%`);
+  }
+
+  const from = pageIndex * pageSize;
+  const to = from + pageSize - 1;
   const { data, error } = await query.order('created_at', { ascending: false }).range(from, to);
 
+  if (error) console.warn('[fetchFilteredPlaces] query error:', error.message);
   if (error || !data) return { rows: [], more: false };
 
   return {

@@ -43,6 +43,11 @@ const toISODate = (ddmmyyyy: string): string => {
   return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 };
 
+const fromISODate = (iso: string): string => {
+  const [year, month, day] = iso.split('-');
+  return `${day}/${month}/${year}`;
+};
+
 const addDays = (date: Date, days: number) => {
   const next = new Date(date);
   next.setDate(next.getDate() + days);
@@ -124,19 +129,29 @@ const DURATIONS = ['Hourly', 'Daily', 'Weekly', 'Monthly'];
 const PRICE_MIN = 0;
 const PRICE_MAX = 1000;
 
-const DEFAULT_PRICE_RANGE: [number, number] = [100, 580];
-const DEFAULT_CATEGORY = 'aesthetics';
+const DEFAULT_PRICE_RANGE: [number, number] = [PRICE_MIN, PRICE_MAX];
+const DEFAULT_CATEGORY = 'all';
 const DEFAULT_DURATION = 'Hourly';
 
 const FilterScreen = ({ navigation, route }: FilterScreenProps) => {
-  const [priceRange, setPriceRange] = useState<[number, number]>(DEFAULT_PRICE_RANGE);
-  const [postCode, setPostCode] = useState('');
-  const [category, setCategory] = useState(DEFAULT_CATEGORY);
-  const [cqcOnly, setCqcOnly] = useState(true);
-  const [duration, setDuration] = useState(DEFAULT_DURATION);
-  const [startDate, setStartDate] = useState(() => formatDate(new Date()));
+  // Reopening the screen after a filter was already applied should show
+  // exactly what's currently active, not reset back to the defaults.
+  const initialFilters = route.params?.initialFilters;
+
+  const [priceRange, setPriceRange] = useState<[number, number]>(
+    initialFilters ? [initialFilters.minPrice, initialFilters.maxPrice] : DEFAULT_PRICE_RANGE,
+  );
+  const [postCode, setPostCode] = useState(initialFilters?.postCode ?? '');
+  const [category, setCategory] = useState(initialFilters?.category ?? DEFAULT_CATEGORY);
+  const [cqcOnly, setCqcOnly] = useState(initialFilters?.cqcOnly ?? false);
+  const [duration, setDuration] = useState<string>(initialFilters?.duration ?? DEFAULT_DURATION);
+  const [startDate, setStartDate] = useState(() =>
+    initialFilters ? fromISODate(initialFilters.startDate) : formatDate(new Date()),
+  );
   const [endDate, setEndDate] = useState(() =>
-    formatDate(addDays(new Date(), MIN_AVAILABILITY_GAP_DAYS)),
+    initialFilters
+      ? fromISODate(initialFilters.endDate)
+      : formatDate(addDays(new Date(), MIN_AVAILABILITY_GAP_DAYS)),
   );
   const [resolvingLocation, setResolvingLocation] = useState(false);
   const { requestLocation } = useDeviceLocation();
@@ -369,6 +384,7 @@ const FilterScreen = ({ navigation, route }: FilterScreenProps) => {
               duration: duration as FilterDuration,
               startDate: toISODate(startDate),
               endDate: toISODate(endDate),
+              postCode: postCode.trim(),
             });
             navigation.goBack();
           }}

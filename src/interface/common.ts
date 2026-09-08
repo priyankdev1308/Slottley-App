@@ -35,13 +35,15 @@ export type RootStackParamList = {
         };
       }
     | undefined;
-  FilterScreen: { onApply?: (filters: PlaceFilters | null) => void } | undefined;
+  FilterScreen:
+    | { onApply?: (filters: PlaceFilters | null) => void; initialFilters?: PlaceFilters | null }
+    | undefined;
   PlaceDetailScreen: { spaceId?: string } | undefined;
   SpaceListScreen: { listType: "nearYou" | "featured" };
-  BookPlaceScreen: { mode: "single" | "weekly" | "monthly"; spaceId?: string };
-  RentAgreementScreen: undefined;
-  PaymentScreen: undefined;
-  BookingConfirmationScreen: undefined;
+  BookPlaceScreen: { mode: "hourly" | "daily" | "weekly" | "monthly"; spaceId: string };
+  RentAgreementScreen: { bookingId: string };
+  PaymentScreen: { bookingId: string };
+  BookingConfirmationScreen: { bookingId: string };
   JobDetailScreen: { jobId?: string } | undefined;
   JobApplyScreen: { jobId?: string } | undefined;
   HostJobRequestDetails: { requestId?: string } | undefined;

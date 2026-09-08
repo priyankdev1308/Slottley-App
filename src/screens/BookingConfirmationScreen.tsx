@@ -1,27 +1,46 @@
-import React from 'react';
-import { View, Text, Image, StyleSheet, StatusBar } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, Image, StyleSheet, StatusBar, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import CustomButton from '../components/CustomButton';
 import { icons } from '../../assets/icons';
-import { images } from '../../assets/images';
 import { colors } from '../utils/colors';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp } from '../helpers/responsive';
 import { BookingConfirmationScreenProps } from '../interface/screenTypes';
+import { BookingDetail, fetchBookingById } from '../api/bookings';
 
-// Mock — will come from the confirmed booking API response.
-const BOOKING = {
-  title: 'Hair Apprentice',
-  location: 'London, UK',
-  bookingId: '#BK2026125898',
-  time: '10:00 AM - 18:00 PM',
-  date: 'Mon, 20 Aug 2026',
-  price: '£120',
-  image: images.dummy2,
-};
+const BookingConfirmationScreen = ({ navigation, route }: BookingConfirmationScreenProps) => {
+  const { bookingId } = route.params;
 
-const BookingConfirmationScreen = ({ navigation }: BookingConfirmationScreenProps) => {
+  const [booking, setBooking] = useState<BookingDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const result = await fetchBookingById(bookingId);
+      if (!cancelled) {
+        setBooking(result);
+        setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [bookingId]);
+
+  if (loading || !booking) {
+    return (
+      <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
+        <StatusBar barStyle="dark-content" />
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="small" color={colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" />
@@ -39,17 +58,17 @@ const BookingConfirmationScreen = ({ navigation }: BookingConfirmationScreenProp
 
         <View style={styles.card}>
           <View style={styles.topRow}>
-            <Image source={BOOKING.image} style={styles.bookingImage} resizeMode="cover" />
+            <Image source={booking.placeImage} style={styles.bookingImage} resizeMode="cover" />
             <View style={styles.bookingTextCol}>
-              <Text style={styles.bookingTitle}>{BOOKING.title}</Text>
+              <Text style={styles.bookingTitle}>{booking.placeTitle}</Text>
               <View style={styles.metaRow}>
                 <Image source={icons.mapPin} style={styles.metaIcon} resizeMode="contain" />
-                <Text style={styles.bookingLocation}>{BOOKING.location}</Text>
+                <Text style={styles.bookingLocation}>{booking.placeLocation}</Text>
               </View>
             </View>
             <View style={styles.bookingIdCol}>
               <Text style={styles.bookingIdLabel}>Booking ID:</Text>
-              <Text style={styles.bookingIdValue}>{BOOKING.bookingId}</Text>
+              <Text style={styles.bookingIdValue}>{booking.bookingId}</Text>
             </View>
           </View>
 
@@ -58,16 +77,16 @@ const BookingConfirmationScreen = ({ navigation }: BookingConfirmationScreenProp
           <View style={styles.detailRow}>
             <View style={styles.detailItem}>
               <Image source={icons.clock} style={styles.metaIcon} resizeMode="contain" />
-              <Text style={styles.detailText}>{BOOKING.time}</Text>
+              <Text style={styles.detailText}>{booking.timeLabel}</Text>
             </View>
             <View style={styles.detailItem}>
               <Image source={icons.calendar} style={styles.metaIcon} resizeMode="contain" />
-              <Text style={styles.detailText}>{BOOKING.date}</Text>
+              <Text style={styles.detailText}>{booking.dateLabel}</Text>
             </View>
           </View>
           <View style={styles.detailItem}>
             <Image source={icons.money} style={styles.metaIcon} resizeMode="contain" />
-            <Text style={styles.detailText}>{BOOKING.price}</Text>
+            <Text style={styles.detailText}>£{booking.totalPrice}</Text>
           </View>
         </View>
       </View>
@@ -88,6 +107,11 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
     backgroundColor: colors.screenBgColor,
+  },
+  loadingWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   content: {
     flex: 1,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,38 +6,22 @@ import {
   StyleSheet,
   StatusBar,
   ScrollView,
+  ActivityIndicator,
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import CustomButton from '../components/CustomButton';
+import ToastAlert from '../components/ToastAlert';
 import { MastercardIcon, VisaIcon } from '../components/icons/PaymentIcons';
 import { icons } from '../../assets/icons';
-import { images } from '../../assets/images';
 import { colors } from '../utils/colors';
 import { headerShadow } from '../utils/shadows';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp } from '../helpers/responsive';
 import { PaymentScreenProps } from '../interface/screenTypes';
 import { SavedCard } from '../interface/common';
-
-// Mock booking summary — will come from the booking/payment API.
-const BOOKING = {
-  title: 'Hair Apprentice',
-  location: 'London, UK',
-  time: '10:00 AM - 12:00 PM',
-  date: 'Thur, 20 Aug 2026',
-  price: '£120',
-  image: images.dummy2,
-};
-
-const SUMMARY = [
-  { label: 'Place Price', value: '£120' },
-  { label: 'Platform Commission', value: '£18' },
-  { label: 'Referral & Earn Credit', value: '- £25' },
-];
-
-const GRAND_TOTAL = '£113';
+import { BookingDetail, fetchBookingById, markBookingConfirmed } from '../api/bookings';
 
 interface PaymentCard {
   id: string;
@@ -50,9 +34,29 @@ const INITIAL_CARDS: PaymentCard[] = [
   { id: 'c2', brand: 'visa', number: '1235 XXXX XXXX 7896' },
 ];
 
-const PaymentScreen = ({ navigation }: PaymentScreenProps) => {
+const PaymentScreen = ({ navigation, route }: PaymentScreenProps) => {
+  const { bookingId } = route.params;
+
+  const [booking, setBooking] = useState<BookingDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [paying, setPaying] = useState(false);
   const [cards, setCards] = useState<PaymentCard[]>(INITIAL_CARDS);
   const [selectedCard, setSelectedCard] = useState(INITIAL_CARDS[0].id);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const result = await fetchBookingById(bookingId);
+      if (!cancelled) {
+        setBooking(result);
+        setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [bookingId]);
 
   const handleAddCard = (card: SavedCard) => {
     const newCard: PaymentCard = {
@@ -63,6 +67,62 @@ const PaymentScreen = ({ navigation }: PaymentScreenProps) => {
     setCards(prev => [...prev, newCard]);
     setSelectedCard(newCard.id);
   };
+
+  // No Stripe integration yet — this just marks the booking confirmed
+  // instead of actually charging the selected card.
+  const handlePay = async () => {
+    if (!booking) return;
+
+    setPaying(true);
+    const ok = await markBookingConfirmed(booking.id);
+    setPaying(false);
+
+    if (!ok) {
+      ToastAlert({ title: 'Could not confirm booking', description: 'Please try again.' });
+      return;
+    }
+    navigation.navigate('BookingConfirmationScreen', { bookingId: booking.id });
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.flex} edges={['top']}>
+        <StatusBar barStyle="dark-content" />
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="small" color={colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!booking) {
+    return (
+      <SafeAreaView style={styles.flex} edges={['top']}>
+        <StatusBar barStyle="dark-content" />
+        <View style={styles.header}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Image source={icons.back} style={styles.backIcon} resizeMode="contain" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Payment</Text>
+          <View style={styles.backButton} />
+        </View>
+        <View style={styles.loadingWrap}>
+          <Text style={styles.summaryLabel}>This booking could not be found.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Platform commission and referral credit aren't wired up yet — no
+  // business rule for either has been specified, so both stay at £0 rather
+  // than fabricating a number. Grand Total is just the place price for now.
+  const commission = 0;
+  const referralCredit = 0;
+  const grandTotal = booking.totalPrice + commission - referralCredit;
 
   return (
     <SafeAreaView style={styles.flex} edges={['top']}>
@@ -88,12 +148,12 @@ const PaymentScreen = ({ navigation }: PaymentScreenProps) => {
       >
         <View style={styles.card}>
           <View style={styles.bookingRow}>
-            <Image source={BOOKING.image} style={styles.bookingImage} resizeMode="cover" />
+            <Image source={booking.placeImage} style={styles.bookingImage} resizeMode="cover" />
             <View style={styles.bookingTextCol}>
-              <Text style={styles.bookingTitle}>{BOOKING.title}</Text>
+              <Text style={styles.bookingTitle}>{booking.placeTitle}</Text>
               <View style={styles.bookingMetaRow}>
                 <Image source={icons.mapPin} style={styles.metaIcon} resizeMode="contain" />
-                <Text style={styles.bookingMetaText}>{BOOKING.location}</Text>
+                <Text style={styles.bookingMetaText}>{booking.placeLocation}</Text>
               </View>
             </View>
           </View>
@@ -101,22 +161,26 @@ const PaymentScreen = ({ navigation }: PaymentScreenProps) => {
           <View style={styles.detailRow}>
             <View style={styles.detailItem}>
               <Image source={icons.clock} style={styles.metaIcon} resizeMode="contain" />
-              <Text style={styles.detailText}>{BOOKING.time}</Text>
+              <Text style={styles.detailText}>{booking.timeLabel}</Text>
             </View>
             <View style={styles.detailItem}>
               <Image source={icons.calendar} style={styles.metaIcon} resizeMode="contain" />
-              <Text style={styles.detailText}>{BOOKING.date}</Text>
+              <Text style={styles.detailText}>{booking.dateLabel}</Text>
             </View>
           </View>
           <View style={styles.detailItem}>
             <Image source={icons.money} style={styles.metaIcon} resizeMode="contain" />
-            <Text style={styles.detailText}>{BOOKING.price}</Text>
+            <Text style={styles.detailText}>£{booking.totalPrice}</Text>
           </View>
         </View>
 
         <View style={styles.card}>
           <Text style={styles.summaryTitle}>Summary</Text>
-          {SUMMARY.map(row => (
+          {[
+            { label: 'Place Price', value: `£${booking.totalPrice}` },
+            { label: 'Platform Commission', value: `£${commission}` },
+            { label: 'Referral & Earn Credit', value: referralCredit ? `- £${referralCredit}` : `£${referralCredit}` },
+          ].map(row => (
             <View key={row.label} style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>{row.label}</Text>
               <Text style={styles.summaryValue}>{row.value}</Text>
@@ -125,7 +189,7 @@ const PaymentScreen = ({ navigation }: PaymentScreenProps) => {
           <View style={styles.summaryDivider} />
           <View style={styles.summaryRow}>
             <Text style={styles.grandTotalLabel}>Grand Total</Text>
-            <Text style={styles.grandTotalValue}>{GRAND_TOTAL}</Text>
+            <Text style={styles.grandTotalValue}>£{grandTotal}</Text>
           </View>
         </View>
 
@@ -164,8 +228,10 @@ const PaymentScreen = ({ navigation }: PaymentScreenProps) => {
 
       <View style={styles.footer}>
         <CustomButton
-          title={`Pay ${GRAND_TOTAL}`}
-          onPress={() => navigation.navigate('BookingConfirmationScreen')}
+          title={`Pay £${grandTotal}`}
+          onPress={handlePay}
+          loader={paying}
+          disable={paying}
         />
       </View>
     </SafeAreaView>
@@ -178,6 +244,11 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
     backgroundColor: colors.screenBgColor,
+  },
+  loadingWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   header: {
     flexDirection: 'row',

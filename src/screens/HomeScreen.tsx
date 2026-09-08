@@ -223,7 +223,12 @@ const HomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
           )}
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => navigation.navigate('FilterScreen', { onApply: setActiveFilters })}
+            onPress={() =>
+              navigation.navigate('FilterScreen', {
+                onApply: setActiveFilters,
+                initialFilters: activeFilters,
+              })
+            }
           >
             <Image source={icons.filter} style={styles.filterIcon} resizeMode="contain" />
           </TouchableOpacity>

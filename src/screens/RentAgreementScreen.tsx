@@ -45,7 +45,8 @@ const CLAUSES = [
   },
 ];
 
-const RentAgreementScreen = ({ navigation }: RentAgreementScreenProps) => {
+const RentAgreementScreen = ({ navigation, route }: RentAgreementScreenProps) => {
+  const { bookingId } = route.params;
   const [accepted, setAccepted] = useState(false);
 
   return (
@@ -97,7 +98,7 @@ const RentAgreementScreen = ({ navigation }: RentAgreementScreenProps) => {
         <CustomButton
           title="Accept & Continue"
           disable={!accepted}
-          onPress={() => navigation.navigate('PaymentScreen')}
+          onPress={() => navigation.navigate('PaymentScreen', { bookingId })}
         />
       </View>
     </SafeAreaView>

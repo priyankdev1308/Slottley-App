@@ -37,8 +37,8 @@ interface CalendarProps {
   selectedDate: Date;
   onSelectDate: (date: Date) => void;
   markedDates?: Date[];
-  /** When set, highlights this many consecutive open days starting at
-   * selectedDate (Sundays are treated as closed and skipped). */
+  /** When set, highlights this many consecutive calendar days starting at
+   * selectedDate. */
   rangeDays?: number;
   /** When set, highlights every day from selectedDate to rangeEnd (inclusive) —
    * for a manually picked start/end range, e.g. a monthly booking. Takes
@@ -62,11 +62,7 @@ const Calendar = ({
   const autoRangeEnd = (() => {
     if (!rangeDays) return null;
     const end = new Date(selectedDate);
-    let remaining = rangeDays - 1;
-    while (remaining > 0) {
-      end.setDate(end.getDate() + 1);
-      if (end.getDay() !== 0) remaining--;
-    }
+    end.setDate(end.getDate() + (rangeDays - 1));
     return end;
   })();
 
@@ -76,7 +72,6 @@ const Calendar = ({
       return date >= selectedDate && date <= rangeEnd;
     }
     if (!rangeDays || !autoRangeEnd) return false;
-    if (date.getDay() === 0) return false;
     if (isSameDay(date, selectedDate)) return false;
     return date > selectedDate && date <= autoRangeEnd;
   };
