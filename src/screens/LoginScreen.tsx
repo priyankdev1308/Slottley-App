@@ -26,6 +26,7 @@ import { fontSize, hp, wp, isIos } from '../helpers/responsive';
 import { isValidEmail } from '../helpers/globalFunctions';
 import { supabase } from '../api/supabaseClient';
 import { getGoogleIdToken, signOutGoogle } from '../api/googleSignIn';
+import { ensureStripeCustomer } from '../api/stripe';
 import ToastAlert from '../components/ToastAlert';
 import { LoginScreenProps } from '../interface/screenTypes';
 import { SpaceRole } from '../navigation/TabNav';
@@ -94,6 +95,7 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
     setSignInLoading(false);
 
     const signedInRole: SpaceRole = (profile?.role as SpaceRole) ?? 'renter';
+    ensureStripeCustomer();
     navigation.reset({
       index: 0,
       routes: [{ name: 'MainTabs', params: { userRole: signedInRole } }],
@@ -175,6 +177,7 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
       return;
     }
 
+    ensureStripeCustomer();
     navigation.reset({ index: 0, routes: [{ name: 'MainTabs', params: { userRole: role } }] });
   };
 
@@ -237,6 +240,7 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
           .eq('id', data.user.id);
 
         setGoogleLoading(false);
+        ensureStripeCustomer();
         navigation.reset({
           index: 0,
           routes: [{ name: 'MainTabs', params: { userRole: profile.role as SpaceRole } }],
@@ -277,6 +281,7 @@ const LoginScreen = ({ navigation }: LoginScreenProps) => {
         return;
       }
 
+      ensureStripeCustomer();
       navigation.reset({ index: 0, routes: [{ name: 'MainTabs', params: { userRole: role } }] });
     } catch (err) {
       setGoogleLoading(false);

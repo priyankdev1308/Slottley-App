@@ -77,4 +77,12 @@ export const icons = {
   bank: require('./ic_bank.png'),
   towel: require('./ic_towel.png'),
   favorite: require('./ic_favorite.png'),
+  cardVisa: require('./ic_visa.png'),
+  cardMastercard: require('./ic_mastercard.png'),
+  cardAmex: require('./ic_amex.png'),
+  cardDiscover: require('./ic_discover.png'),
+  cardDiners: require('./ic_dinners-club.png'),
+  cardJcb: require('./ic_jcb.png'),
+  cardUnionpay: require('./ic_unionpay.png'),
+  cardOther: require('./ic_other.png'),
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,13 +6,14 @@ import {
   StyleSheet,
   StatusBar,
   ScrollView,
+  ActivityIndicator,
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import CustomButton from '../components/CustomButton';
 import ToastAlert from '../components/ToastAlert';
-import { MastercardIcon, VisaIcon } from '../components/icons/PaymentIcons';
+import { getCardBrandIcon } from '../components/icons/CardIcons';
 import { icons } from '../../assets/icons';
 import { colors } from '../utils/colors';
 import { headerShadow } from '../utils/shadows';
@@ -20,6 +21,7 @@ import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp } from '../helpers/responsive';
 import { HostPaymentScreenProps } from '../interface/screenTypes';
 import { SavedCard } from '../interface/common';
+import { supabase } from '../api/supabaseClient';
 import { HOST_JOBS } from './HostMyJobScreen';
 
 const SUMMARY = [
@@ -31,25 +33,43 @@ const GRAND_TOTAL = '£54';
 
 interface PaymentCard {
   id: string;
-  brand: 'mastercard' | 'visa';
+  brand: SavedCard['brand'];
   number: string;
 }
 
-const INITIAL_CARDS: PaymentCard[] = [
-  { id: 'c1', brand: 'mastercard', number: '1235 XXXX XXXX 7896' },
-  { id: 'c2', brand: 'visa', number: '1235 XXXX XXXX 7896' },
-];
-
 const HostPaymentScreen = ({ navigation, route }: HostPaymentScreenProps) => {
   const job = HOST_JOBS.find(j => j.id === route.params?.jobId) ?? HOST_JOBS[0];
-  const [cards, setCards] = useState<PaymentCard[]>(INITIAL_CARDS);
-  const [selectedCard, setSelectedCard] = useState(INITIAL_CARDS[0].id);
+  const [cards, setCards] = useState<PaymentCard[]>([]);
+  const [cardsLoading, setCardsLoading] = useState(true);
+  const [selectedCard, setSelectedCard] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase.functions.invoke('list-cards');
+      if (!cancelled) {
+        if (!error && data?.cards) {
+          const mapped: PaymentCard[] = data.cards.map((card: SavedCard) => ({
+            id: card.id,
+            brand: card.brand,
+            number: `XXXX XXXX XXXX ${card.last4}`,
+          }));
+          setCards(mapped);
+          setSelectedCard(prev => prev ?? mapped[0]?.id ?? null);
+        }
+        setCardsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleAddCard = (card: SavedCard) => {
     const newCard: PaymentCard = {
       id: card.id,
       brand: card.brand,
-      number: `${card.first4} XXXX XXXX ${card.last4}`,
+      number: `XXXX XXXX XXXX ${card.last4}`,
     };
     setCards(prev => [...prev, newCard]);
     setSelectedCard(newCard.id);
@@ -118,23 +138,34 @@ const HostPaymentScreen = ({ navigation, route }: HostPaymentScreenProps) => {
         </View>
 
         <Text style={styles.sectionLabel}>Select Payment Method</Text>
-        {cards.map(cardItem => {
-          const isSelected = selectedCard === cardItem.id;
-          return (
-            <TouchableOpacity
-              key={cardItem.id}
-              activeOpacity={0.85}
-              style={styles.cardRow}
-              onPress={() => setSelectedCard(cardItem.id)}
-            >
-              {cardItem.brand === 'mastercard' ? <MastercardIcon /> : <VisaIcon />}
-              <Text style={styles.cardNumber}>{cardItem.number}</Text>
-              <View style={[styles.radioOuter, isSelected && styles.radioOuterSelected]}>
-                {isSelected && <View style={styles.radioInner} />}
-              </View>
-            </TouchableOpacity>
-          );
-        })}
+        {cardsLoading ? (
+          <View style={styles.cardsLoadingWrap}>
+            <ActivityIndicator size="small" color={colors.primary} />
+          </View>
+        ) : (
+          <>
+            {cards.length === 0 && (
+              <Text style={styles.summaryLabel}>No saved cards yet. Add one below.</Text>
+            )}
+            {cards.map(cardItem => {
+              const isSelected = selectedCard === cardItem.id;
+              return (
+                <TouchableOpacity
+                  key={cardItem.id}
+                  activeOpacity={0.85}
+                  style={styles.cardRow}
+                  onPress={() => setSelectedCard(cardItem.id)}
+                >
+                  {getCardBrandIcon(cardItem.brand)}
+                  <Text style={styles.cardNumber}>{cardItem.number}</Text>
+                  <View style={[styles.radioOuter, isSelected && styles.radioOuterSelected]}>
+                    {isSelected && <View style={styles.radioInner} />}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </>
+        )}
 
         <TouchableOpacity
           activeOpacity={0.8}
@@ -295,6 +326,10 @@ const styles = StyleSheet.create({
     fontSize: fontSize(16),
     fontFamily: fonts.Lato700,
     marginBottom: hp(12),
+  },
+  cardsLoadingWrap: {
+    paddingVertical: hp(20),
+    alignItems: 'center',
   },
   cardRow: {
     flexDirection: 'row',

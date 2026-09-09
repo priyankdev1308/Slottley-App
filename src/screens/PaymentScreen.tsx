@@ -10,10 +10,11 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 
 import CustomButton from '../components/CustomButton';
 import ToastAlert from '../components/ToastAlert';
-import { MastercardIcon, VisaIcon } from '../components/icons/PaymentIcons';
+import { getCardBrandIcon } from '../components/icons/CardIcons';
 import { icons } from '../../assets/icons';
 import { colors } from '../utils/colors';
 import { headerShadow } from '../utils/shadows';
@@ -21,108 +22,104 @@ import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp } from '../helpers/responsive';
 import { PaymentScreenProps } from '../interface/screenTypes';
 import { SavedCard } from '../interface/common';
-import { BookingDetail, fetchBookingById, markBookingConfirmed } from '../api/bookings';
+import { buildBookingLabels } from '../api/bookings';
+import { supabase } from '../api/supabaseClient';
 
 interface PaymentCard {
   id: string;
-  brand: 'mastercard' | 'visa';
+  brand: SavedCard['brand'];
   number: string;
 }
 
-const INITIAL_CARDS: PaymentCard[] = [
-  { id: 'c1', brand: 'mastercard', number: '1235 XXXX XXXX 7896' },
-  { id: 'c2', brand: 'visa', number: '1235 XXXX XXXX 7896' },
-];
-
 const PaymentScreen = ({ navigation, route }: PaymentScreenProps) => {
-  const { bookingId } = route.params;
+  const { draft } = route.params;
 
-  const [booking, setBooking] = useState<BookingDetail | null>(null);
-  const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
-  const [cards, setCards] = useState<PaymentCard[]>(INITIAL_CARDS);
-  const [selectedCard, setSelectedCard] = useState(INITIAL_CARDS[0].id);
+  const [cards, setCards] = useState<PaymentCard[]>([]);
+  const [cardsLoading, setCardsLoading] = useState(true);
+  const [selectedCard, setSelectedCard] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      setLoading(true);
-      const result = await fetchBookingById(bookingId);
+      const { data, error } = await supabase.functions.invoke('list-cards');
       if (!cancelled) {
-        setBooking(result);
-        setLoading(false);
+        if (!error && data?.cards) {
+          const mapped: PaymentCard[] = data.cards.map((card: SavedCard) => ({
+            id: card.id,
+            brand: card.brand,
+            number: `XXXX XXXX XXXX ${card.last4}`,
+          }));
+          setCards(mapped);
+          setSelectedCard(prev => prev ?? mapped[0]?.id ?? null);
+        }
+        setCardsLoading(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [bookingId]);
+  }, []);
 
   const handleAddCard = (card: SavedCard) => {
     const newCard: PaymentCard = {
       id: card.id,
       brand: card.brand,
-      number: `${card.first4} XXXX XXXX ${card.last4}`,
+      number: `XXXX XXXX XXXX ${card.last4}`,
     };
     setCards(prev => [...prev, newCard]);
     setSelectedCard(newCard.id);
   };
 
-  // No Stripe integration yet — this just marks the booking confirmed
-  // instead of actually charging the selected card.
   const handlePay = async () => {
-    if (!booking) return;
-
-    setPaying(true);
-    const ok = await markBookingConfirmed(booking.id);
-    setPaying(false);
-
-    if (!ok) {
-      ToastAlert({ title: 'Could not confirm booking', description: 'Please try again.' });
+    if (!selectedCard) {
+      ToastAlert({ title: 'Select a card', description: 'Choose a saved card to pay with.' });
       return;
     }
-    navigation.navigate('BookingConfirmationScreen', { bookingId: booking.id });
+
+    setPaying(true);
+    const { data, error } = await supabase.functions.invoke('create-booking-payment', {
+      body: {
+        paymentMethodId: selectedCard,
+        placeId: draft.placeId,
+        bookingType: draft.bookingType,
+        startDateTime: draft.startDateTime,
+        endDateTime: draft.endDateTime,
+        quantity: draft.quantity,
+        rate: draft.rate,
+        totalPrice: draft.totalPrice,
+      },
+    });
+    setPaying(false);
+
+    if (error || !data?.bookingId) {
+      let description = 'Please try again or use a different card.';
+      if (error instanceof FunctionsHttpError) {
+        try {
+          const body = await error.context.json();
+          description = body?.error ?? description;
+        } catch {
+          // response body wasn't JSON — fall back to the generic message
+        }
+      }
+      ToastAlert({ title: 'Payment failed', description });
+      return;
+    }
+    navigation.navigate('BookingConfirmationScreen', { bookingId: data.bookingId });
   };
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.flex} edges={['top']}>
-        <StatusBar barStyle="dark-content" />
-        <View style={styles.loadingWrap}>
-          <ActivityIndicator size="small" color={colors.primary} />
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (!booking) {
-    return (
-      <SafeAreaView style={styles.flex} edges={['top']}>
-        <StatusBar barStyle="dark-content" />
-        <View style={styles.header}>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Image source={icons.back} style={styles.backIcon} resizeMode="contain" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Payment</Text>
-          <View style={styles.backButton} />
-        </View>
-        <View style={styles.loadingWrap}>
-          <Text style={styles.summaryLabel}>This booking could not be found.</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   // Platform commission and referral credit aren't wired up yet — no
   // business rule for either has been specified, so both stay at £0 rather
   // than fabricating a number. Grand Total is just the place price for now.
   const commission = 0;
   const referralCredit = 0;
-  const grandTotal = booking.totalPrice + commission - referralCredit;
+  const grandTotal = draft.totalPrice + commission - referralCredit;
+  const { timeLabel, dateLabel } = buildBookingLabels(
+    draft.bookingType,
+    draft.startDateTime,
+    draft.endDateTime,
+    draft.quantity,
+  );
 
   return (
     <SafeAreaView style={styles.flex} edges={['top']}>
@@ -148,12 +145,12 @@ const PaymentScreen = ({ navigation, route }: PaymentScreenProps) => {
       >
         <View style={styles.card}>
           <View style={styles.bookingRow}>
-            <Image source={booking.placeImage} style={styles.bookingImage} resizeMode="cover" />
+            <Image source={draft.placeImage} style={styles.bookingImage} resizeMode="cover" />
             <View style={styles.bookingTextCol}>
-              <Text style={styles.bookingTitle}>{booking.placeTitle}</Text>
+              <Text style={styles.bookingTitle}>{draft.placeTitle}</Text>
               <View style={styles.bookingMetaRow}>
                 <Image source={icons.mapPin} style={styles.metaIcon} resizeMode="contain" />
-                <Text style={styles.bookingMetaText}>{booking.placeLocation}</Text>
+                <Text style={styles.bookingMetaText}>{draft.placeLocation}</Text>
               </View>
             </View>
           </View>
@@ -161,23 +158,23 @@ const PaymentScreen = ({ navigation, route }: PaymentScreenProps) => {
           <View style={styles.detailRow}>
             <View style={styles.detailItem}>
               <Image source={icons.clock} style={styles.metaIcon} resizeMode="contain" />
-              <Text style={styles.detailText}>{booking.timeLabel}</Text>
+              <Text style={styles.detailText}>{timeLabel}</Text>
             </View>
             <View style={styles.detailItem}>
               <Image source={icons.calendar} style={styles.metaIcon} resizeMode="contain" />
-              <Text style={styles.detailText}>{booking.dateLabel}</Text>
+              <Text style={styles.detailText}>{dateLabel}</Text>
             </View>
           </View>
           <View style={styles.detailItem}>
             <Image source={icons.money} style={styles.metaIcon} resizeMode="contain" />
-            <Text style={styles.detailText}>£{booking.totalPrice}</Text>
+            <Text style={styles.detailText}>£{draft.totalPrice}</Text>
           </View>
         </View>
 
         <View style={styles.card}>
           <Text style={styles.summaryTitle}>Summary</Text>
           {[
-            { label: 'Place Price', value: `£${booking.totalPrice}` },
+            { label: 'Place Price', value: `£${draft.totalPrice}` },
             { label: 'Platform Commission', value: `£${commission}` },
             { label: 'Referral & Earn Credit', value: referralCredit ? `- £${referralCredit}` : `£${referralCredit}` },
           ].map(row => (
@@ -194,23 +191,34 @@ const PaymentScreen = ({ navigation, route }: PaymentScreenProps) => {
         </View>
 
         <Text style={styles.sectionLabel}>Select Payment Method</Text>
-        {cards.map(card => {
-          const isSelected = selectedCard === card.id;
-          return (
-            <TouchableOpacity
-              key={card.id}
-              activeOpacity={0.85}
-              style={styles.cardRow}
-              onPress={() => setSelectedCard(card.id)}
-            >
-              {card.brand === 'mastercard' ? <MastercardIcon /> : <VisaIcon />}
-              <Text style={styles.cardNumber}>{card.number}</Text>
-              <View style={[styles.radioOuter, isSelected && styles.radioOuterSelected]}>
-                {isSelected && <View style={styles.radioInner} />}
-              </View>
-            </TouchableOpacity>
-          );
-        })}
+        {cardsLoading ? (
+          <View style={styles.cardsLoadingWrap}>
+            <ActivityIndicator size="small" color={colors.primary} />
+          </View>
+        ) : (
+          <>
+            {cards.length === 0 && (
+              <Text style={styles.summaryLabel}>No saved cards yet. Add one below.</Text>
+            )}
+            {cards.map(card => {
+              const isSelected = selectedCard === card.id;
+              return (
+                <TouchableOpacity
+                  key={card.id}
+                  activeOpacity={0.85}
+                  style={styles.cardRow}
+                  onPress={() => setSelectedCard(card.id)}
+                >
+                  {getCardBrandIcon(card.brand)}
+                  <Text style={styles.cardNumber}>{card.number}</Text>
+                  <View style={[styles.radioOuter, isSelected && styles.radioOuterSelected]}>
+                    {isSelected && <View style={styles.radioInner} />}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </>
+        )}
 
         <TouchableOpacity
           activeOpacity={0.8}
@@ -392,6 +400,10 @@ const styles = StyleSheet.create({
     fontSize: fontSize(16),
     fontFamily: fonts.Lato700,
     marginBottom: hp(12),
+  },
+  cardsLoadingWrap: {
+    paddingVertical: hp(20),
+    alignItems: 'center',
   },
   cardRow: {
     flexDirection: 'row',

@@ -10,6 +10,7 @@ import { fonts } from "../utils/fonts";
 import { fontSize, hp, wp } from "../helpers/responsive";
 import { images } from "../../assets/images";
 import { supabase } from "../api/supabaseClient";
+import { ensureStripeCustomer } from "../api/stripe";
 import ToastAlert from "../components/ToastAlert";
 import { screens } from "./routes/screens";
 import { SpaceRole } from "./TabNav";
@@ -84,6 +85,8 @@ const StackNav = () => {
           finishWith(screens.LoginScreen as keyof RootStackParamList);
           return;
         }
+
+        ensureStripeCustomer();
 
         const { data: profile } = await supabase
           .from("users")

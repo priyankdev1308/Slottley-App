@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -7,30 +7,45 @@ import {
   StyleSheet,
   StatusBar,
   ScrollView,
+  ActivityIndicator,
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { icons } from '../../assets/icons';
-import { MastercardIcon, PlusCircleIcon, TrashIcon } from '../components/icons/CardIcons';
+import { getCardBrandIcon, formatExpiry, PlusCircleIcon, TrashIcon } from '../components/icons/CardIcons';
+import ToastAlert from '../components/ToastAlert';
 import { colors } from '../utils/colors';
 import { headerShadow } from '../utils/shadows';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp } from '../helpers/responsive';
 import { MyCardsScreenProps } from '../interface/screenTypes';
 import { SavedCard } from '../interface/common';
-
-// TODO: replace with the signed-in user's real saved cards once this screen
-// is wired to a backend/payment provider.
-const INITIAL_CARDS: SavedCard[] = [
-  { id: '1', brand: 'mastercard', first4: '1235', last4: '7896' },
-  { id: '2', brand: 'visa', first4: '1235', last4: '7896' },
-  { id: '3', brand: 'mastercard', first4: '1235', last4: '7896' },
-  { id: '4', brand: 'visa', first4: '1235', last4: '7896' },
-];
+import { supabase } from '../api/supabaseClient';
 
 const MyCardsScreen = ({ navigation }: MyCardsScreenProps) => {
-  const [cards, setCards] = useState<SavedCard[]>(INITIAL_CARDS);
+  const [cards, setCards] = useState<SavedCard[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      setLoading(true);
+
+      (async () => {
+        const { data, error } = await supabase.functions.invoke('list-cards');
+        if (!cancelled) {
+          if (!error && data?.cards) setCards(data.cards);
+          setLoading(false);
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
 
   const handleDelete = (id: string) => {
     Alert.alert('Remove card', 'Are you sure you want to remove this card?', [
@@ -38,7 +53,16 @@ const MyCardsScreen = ({ navigation }: MyCardsScreenProps) => {
       {
         text: 'Remove',
         style: 'destructive',
-        onPress: () => setCards(prev => prev.filter(card => card.id !== id)),
+        onPress: async () => {
+          const { error } = await supabase.functions.invoke('remove-card', {
+            body: { paymentMethodId: id },
+          });
+          if (error) {
+            ToastAlert({ title: 'Could not remove card', description: 'Please try again.' });
+            return;
+          }
+          setCards(prev => prev.filter(card => card.id !== id));
+        },
       },
     ]);
   };
@@ -66,39 +90,43 @@ const MyCardsScreen = ({ navigation }: MyCardsScreenProps) => {
         <View style={styles.backButton} />
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {cards.map(card => (
-          <View key={card.id} style={styles.cardRow}>
-            {card.brand === 'mastercard' ? (
-              <MastercardIcon size={30} />
-            ) : (
-              <Text style={styles.visaText}>VISA</Text>
-            )}
-            <Text style={styles.cardNumber}>
-              {card.first4} XXXX XXXX {card.last4}
-            </Text>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() => handleDelete(card.id)}
-              style={styles.deleteButton}
-            >
-              <TrashIcon size={16} />
-            </TouchableOpacity>
-          </View>
-        ))}
-
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={() => navigation.navigate('AddNewCardScreen', { onAdd: handleAdd })}
-          style={styles.addCardButton}
+      {loading ? (
+        <View style={styles.centerContent}>
+          <ActivityIndicator size="small" color={colors.primary} />
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
         >
-          <PlusCircleIcon color={colors.primary} />
-          <Text style={styles.addCardText}>Add New Card</Text>
-        </TouchableOpacity>
-      </ScrollView>
+          {cards.length === 0 && <Text style={styles.emptyText}>No saved cards yet.</Text>}
+          {cards.map(card => (
+            <View key={card.id} style={styles.cardRow}>
+              {getCardBrandIcon(card.brand, 40)}
+              <View style={styles.cardTextCol}>
+                <Text style={styles.cardNumber}>XXXX XXXX XXXX {card.last4}</Text>
+                {/* <Text style={styles.cardExpiry}>Expires {formatExpiry(card.expMonth, card.expYear)}</Text> */}
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => handleDelete(card.id)}
+                style={styles.deleteButton}
+              >
+                <TrashIcon size={16} />
+              </TouchableOpacity>
+            </View>
+          ))}
+
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('AddNewCardScreen', { onAdd: handleAdd })}
+            style={styles.addCardButton}
+          >
+            <PlusCircleIcon color={colors.primary} />
+            <Text style={styles.addCardText}>Add New Card</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 };
@@ -153,6 +181,19 @@ const styles = StyleSheet.create({
     paddingTop: hp(20),
     paddingBottom: hp(40),
   },
+  centerContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: colors.placeHolder,
+    fontSize: fontSize(14),
+    fontFamily: fonts.Lato500,
+    marginTop: hp(40),
+    marginBottom: hp(20),
+  },
   cardRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -170,18 +211,19 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
-  visaText: {
-    width: wp(30),
-    color: '#1A1F71',
-    fontSize: fontSize(13),
-    fontStyle: 'italic',
-    fontFamily: fonts.Lato700,
+  cardTextCol: {
+    flex: 1,
   },
   cardNumber: {
-    flex: 1,
     color: colors.black,
     fontSize: fontSize(16),
     fontFamily: fonts.Lato600,
+  },
+  cardExpiry: {
+    marginTop: hp(4),
+    color: colors.placeHolder,
+    fontSize: fontSize(12),
+    fontFamily: fonts.Lato500,
   },
   deleteButton: {
     width: wp(30),

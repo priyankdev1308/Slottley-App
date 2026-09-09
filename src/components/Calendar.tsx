@@ -59,6 +59,9 @@ const Calendar = ({
   const monthIndex = month.getMonth();
   const weeks = buildMonthWeeks(year, monthIndex);
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   const autoRangeEnd = (() => {
     if (!rangeDays) return null;
     const end = new Date(selectedDate);
@@ -108,6 +111,7 @@ const Calendar = ({
             if (!day) return <View key={dayIndex} style={styles.dayCell} />;
 
             const date = new Date(year, monthIndex, day);
+            const isPast = date < today;
             const isStart = isSameDay(date, selectedDate);
             const isEnd = !!rangeEnd && isSameDay(date, rangeEnd);
             const isEndpoint = isStart || isEnd;
@@ -122,7 +126,8 @@ const Calendar = ({
             return (
               <TouchableOpacity
                 key={dayIndex}
-                activeOpacity={0.7}
+                activeOpacity={isPast ? 1 : 0.7}
+                disabled={isPast}
                 onPress={() => onSelectDate(date)}
                 style={[
                   styles.dayCell,
@@ -132,7 +137,13 @@ const Calendar = ({
                 ]}
               >
                 <View style={[styles.dayCircle, isEndpoint && styles.dayCircleSelected]}>
-                  <Text style={[styles.dayText, isEndpoint && styles.dayTextSelected]}>
+                  <Text
+                    style={[
+                      styles.dayText,
+                      isEndpoint && styles.dayTextSelected,
+                      isPast && !isEndpoint && styles.dayTextDisabled,
+                    ]}
+                  >
                     {day}
                   </Text>
                 </View>
@@ -224,6 +235,9 @@ const styles = StyleSheet.create({
   dayTextSelected: {
     color: colors.white,
     fontFamily: fonts.Lato700,
+  },
+  dayTextDisabled: {
+    color: colors.placeHolder,
   },
   markDot: {
     position: 'absolute',

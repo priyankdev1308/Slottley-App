@@ -9,11 +9,32 @@ import {
 import type { SpaceRole, MainTabParamList } from "../navigation/TabNav";
 import type { PlaceFilters } from "../api/places";
 
+// A Stripe PaymentMethod id (pm_...) plus its display-safe card summary —
+// Stripe never returns a saved card's first 4 digits, only last4.
 export interface SavedCard {
   id: string;
-  brand: "visa" | "mastercard";
+  brand: "visa" | "mastercard" | "amex" | "discover" | "diners" | "jcb" | "unionpay" | "unknown";
   last4: string;
-  first4: string;
+  expMonth: number;
+  expYear: number;
+}
+
+// Everything needed to show the booking summary and charge for it, before
+// any book_space row exists — the row is only created after payment
+// succeeds (see create-booking-payment Edge Function), so this is what
+// flows through BookPlaceScreen -> RentAgreementScreen -> PaymentScreen
+// instead of a bookingId.
+export interface BookingDraft {
+  placeId: string;
+  placeTitle: string;
+  placeLocation: string;
+  placeImage: ImageSourcePropType;
+  bookingType: "Hourly" | "Daily" | "Weekly" | "Monthly";
+  startDateTime: string; // ISO
+  endDateTime: string; // ISO
+  quantity: number;
+  rate: number;
+  totalPrice: number;
 }
 
 export type RootStackParamList = {
@@ -41,8 +62,8 @@ export type RootStackParamList = {
   PlaceDetailScreen: { spaceId?: string } | undefined;
   SpaceListScreen: { listType: "nearYou" | "featured" };
   BookPlaceScreen: { mode: "hourly" | "daily" | "weekly" | "monthly"; spaceId: string };
-  RentAgreementScreen: { bookingId: string };
-  PaymentScreen: { bookingId: string };
+  RentAgreementScreen: { draft: BookingDraft };
+  PaymentScreen: { draft: BookingDraft };
   BookingConfirmationScreen: { bookingId: string };
   JobDetailScreen: { jobId?: string } | undefined;
   JobApplyScreen: { jobId?: string } | undefined;

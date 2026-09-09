@@ -65,23 +65,41 @@ const UNIT_LABEL: Record<BookingType, string> = {
   Monthly: 'Month',
 };
 
+// Pre-formatted display strings shared by any screen showing a booking —
+// a confirmed row (via mapBookingRow) or a not-yet-paid-for draft
+// (PaymentScreen, before a book_space row exists).
+export const buildBookingLabels = (
+  bookingType: BookingType,
+  startISO: string,
+  endISO: string,
+  quantity: number,
+) => {
+  const start = new Date(startISO);
+  const end = new Date(endISO);
+  const unit = UNIT_LABEL[bookingType];
+
+  const timeLabel =
+    bookingType === 'Hourly'
+      ? `${formatDisplayTime(start)} - ${formatDisplayTime(end)}`
+      : `${quantity} ${quantity === 1 ? unit : `${unit}s`}`;
+
+  const dateLabel =
+    bookingType === 'Hourly'
+      ? formatDisplayDate(start)
+      : `${formatDisplayDate(start)} - ${formatDisplayDate(end)}`;
+
+  return { timeLabel, dateLabel };
+};
+
 const mapBookingRow = (row: BookSpaceRow): BookingDetail | null => {
   if (!row.places) return null;
   const place = mapPlaceRow(row.places);
-
-  const start = new Date(row.start_date_time);
-  const end = new Date(row.end_date_time);
-  const unit = UNIT_LABEL[row.booking_type];
-
-  const timeLabel =
-    row.booking_type === 'Hourly'
-      ? `${formatDisplayTime(start)} - ${formatDisplayTime(end)}`
-      : `${row.quantity} ${row.quantity === 1 ? unit : `${unit}s`}`;
-
-  const dateLabel =
-    row.booking_type === 'Hourly'
-      ? formatDisplayDate(start)
-      : `${formatDisplayDate(start)} - ${formatDisplayDate(end)}`;
+  const { timeLabel, dateLabel } = buildBookingLabels(
+    row.booking_type,
+    row.start_date_time,
+    row.end_date_time,
+    row.quantity,
+  );
 
   return {
     id: row.id,
@@ -111,9 +129,32 @@ export const fetchBookingById = async (id: string): Promise<BookingDetail | null
   return mapBookingRow(data as unknown as BookSpaceRow);
 };
 
-// Stands in for a real payment-success webhook until Stripe is wired up —
-// just flips the row to Confirmed, no charge actually happens yet.
-export const markBookingConfirmed = async (id: string): Promise<boolean> => {
-  const { error } = await supabase.from('book_space').update({ status: 'Confirmed' }).eq('id', id);
+// One page of the CALLING user's own bookings (RLS already scopes
+// book_space selects to auth.uid() = renter_id), most recently created
+// first — same { rows, more } paging convention as fetchFeaturedPlaces.
+export const fetchMyBookingsPage = async (
+  pageIndex: number,
+  pageSize: number,
+): Promise<{ rows: BookingDetail[]; more: boolean }> => {
+  const from = pageIndex * pageSize;
+  const to = from + pageSize - 1;
+
+  const { data, error } = await supabase
+    .from('book_space')
+    .select(BOOK_SPACE_SELECT)
+    .order('created_at', { ascending: false })
+    .range(from, to);
+
+  if (error || !data) return { rows: [], more: false };
+
+  const rows = (data as unknown as BookSpaceRow[])
+    .map(mapBookingRow)
+    .filter((booking): booking is BookingDetail => booking !== null);
+
+  return { rows, more: data.length === pageSize };
+};
+
+export const cancelBooking = async (id: string): Promise<boolean> => {
+  const { error } = await supabase.from('book_space').update({ status: 'Cancelled' }).eq('id', id);
   return !error;
 };

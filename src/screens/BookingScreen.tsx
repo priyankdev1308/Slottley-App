@@ -1,93 +1,90 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
   Image,
+  FlatList,
   StyleSheet,
   StatusBar,
-  ScrollView,
+  RefreshControl,
+  ActivityIndicator,
   TouchableOpacity,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { icons } from '../../assets/icons';
-import { images } from '../../assets/images';
 import { colors } from '../utils/colors';
 import { headerShadow } from '../utils/shadows';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp } from '../helpers/responsive';
 import { MainTabScreenProps } from '../navigation/TabNav';
+import ToastAlert from '../components/ToastAlert';
+import { BookingDetail, BookingStatus, cancelBooking, fetchMyBookingsPage } from '../api/bookings';
 
-type BookingStatus = 'Pending' | 'Complete' | 'Cancelled';
-
-interface Booking {
-  id: string;
-  title: string;
-  location: string;
-  time: string;
-  date: string;
-  price: string;
-  status: BookingStatus;
-  image: any;
-}
+const LIST_PAGE_SIZE = 10;
 
 const STATUS_STYLES: Record<
   BookingStatus,
   { text: string; bg: string; border: string }
 > = {
   Pending: { text: colors.pending, bg: colors.pendingBg, border: colors.pendingBorder },
-  Complete: { text: colors.complete, bg: colors.completeBg, border: colors.completeBorder },
+  Confirmed: { text: colors.complete, bg: colors.completeBg, border: colors.completeBorder },
   Cancelled: { text: colors.red, bg: colors.lightRed, border: colors.red80 },
 };
 
-const INITIAL_BOOKINGS: Booking[] = [
-  {
-    id: 'b1',
-    title: 'Premium Nail Desk',
-    location: 'London, UK',
-    time: '10:00 AM - 12:00 PM',
-    date: 'Thur, 20 Aug 2026',
-    price: '£120',
-    status: 'Pending',
-    image: images.dummy1,
-  },
-  {
-    id: 'b2',
-    title: 'Hair Apprentice',
-    location: 'London, UK',
-    time: '12:00 PM - 18:00 PM',
-    date: 'Sat, 22 Aug 2026',
-    price: '£100',
-    status: 'Complete',
-    image: images.dummy2,
-  },
-  {
-    id: 'b3',
-    title: 'Luxury Beauty Room',
-    location: 'London, UK',
-    time: '2 Days',
-    date: 'Mon, 24 Aug 2026',
-    price: '£220',
-    status: 'Pending',
-    image: images.dummy3,
-  },
-  {
-    id: 'b4',
-    title: 'Modern Barbershop',
-    location: 'London, UK',
-    time: '09:00 AM - 10:00 AM',
-    date: 'Wed, 26 Aug 2026',
-    price: '£65',
-    status: 'Cancelled',
-    image: images.dummy1,
-  },
-];
-
 const BookingScreen = (_props: MainTabScreenProps<'Booking'>) => {
-  const [bookings, setBookings] = useState(INITIAL_BOOKINGS);
+  const [bookings, setBookings] = useState<BookingDetail[]>([]);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingInitial, setLoadingInitial] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const cancelBooking = (id: string) => {
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      setLoadingInitial(true);
+
+      (async () => {
+        const { rows, more } = await fetchMyBookingsPage(0, LIST_PAGE_SIZE);
+        if (!cancelled) {
+          setBookings(rows);
+          setHasMore(more);
+          setPage(0);
+          setLoadingInitial(false);
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    const { rows, more } = await fetchMyBookingsPage(0, LIST_PAGE_SIZE);
+    setBookings(rows);
+    setHasMore(more);
+    setPage(0);
+    setRefreshing(false);
+  };
+
+  const handleLoadMore = async () => {
+    if (loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+    const nextPage = page + 1;
+    const { rows, more } = await fetchMyBookingsPage(nextPage, LIST_PAGE_SIZE);
+    setBookings(prev => [...prev, ...rows]);
+    setHasMore(more);
+    setPage(nextPage);
+    setLoadingMore(false);
+  };
+
+  const handleCancelBooking = (id: string) => {
     Alert.alert(
       'Cancel Booking',
       'Are you sure you want to cancel this booking? This action cannot be undone.',
@@ -96,10 +93,16 @@ const BookingScreen = (_props: MainTabScreenProps<'Booking'>) => {
         {
           text: 'Yes, Cancel',
           style: 'destructive',
-          onPress: () =>
+          onPress: async () => {
+            const ok = await cancelBooking(id);
+            if (!ok) {
+              ToastAlert({ title: 'Could not cancel booking', description: 'Please try again.' });
+              return;
+            }
             setBookings(prev =>
               prev.map(b => (b.id === id ? { ...b, status: 'Cancelled' as const } : b)),
-            ),
+            );
+          },
         },
       ],
     );
@@ -114,72 +117,93 @@ const BookingScreen = (_props: MainTabScreenProps<'Booking'>) => {
         <Text style={styles.headerTitle}>My Booking</Text>
       </View>
 
-      <ScrollView
-        style={styles.flex}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {bookings.map(booking => {
-          const statusStyle = STATUS_STYLES[booking.status];
-          return (
-            <View key={booking.id} style={styles.card}>
-              <View style={styles.topRow}>
-                <Image source={booking.image} style={styles.thumbnail} resizeMode="cover" />
-                <View style={styles.titleCol}>
-                  <Text style={styles.title}>{booking.title}</Text>
-                  <View style={styles.locationRow}>
+      {loadingInitial ? (
+        <View style={styles.centerContent}>
+          <ActivityIndicator size="small" color={colors.primary} />
+        </View>
+      ) : bookings.length === 0 ? (
+        <View style={styles.centerContent}>
+          <Text style={styles.emptyText}>No bookings yet.</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={bookings}
+          keyExtractor={item => item.id}
+          style={styles.flex}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          onEndReachedThreshold={0.4}
+          onEndReached={handleLoadMore}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+          }
+          ListFooterComponent={
+            loadingMore ? (
+              <ActivityIndicator size="small" color={colors.primary} style={styles.listLoader} />
+            ) : null
+          }
+          renderItem={({ item: booking }) => {
+            const statusStyle = STATUS_STYLES[booking.status];
+            return (
+              <View style={styles.card}>
+                <View style={styles.topRow}>
+                  <Image source={booking.placeImage} style={styles.thumbnail} resizeMode="cover" />
+                  <View style={styles.titleCol}>
+                    <Text style={styles.title}>{booking.placeTitle}</Text>
+                    <View style={styles.locationRow}>
+                      <Image
+                        source={icons.mapPin}
+                        style={styles.metaIcon}
+                        resizeMode="contain"
+                      />
+                      <Text style={styles.locationText}>{booking.placeLocation}</Text>
+                    </View>
+                  </View>
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      { backgroundColor: statusStyle.bg, borderColor: statusStyle.border },
+                    ]}
+                  >
+                    <Text style={[styles.statusText, { color: statusStyle.text }]}>
+                      {booking.status}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.detailRow}>
+                  <View style={styles.detailItem}>
+                    <Image source={icons.clock} style={styles.metaIcon} resizeMode="contain" />
+                    <Text style={styles.detailText}>{booking.timeLabel}</Text>
+                  </View>
+                  <View style={styles.detailItem}>
                     <Image
-                      source={icons.mapPin}
+                      source={icons.calendar}
                       style={styles.metaIcon}
                       resizeMode="contain"
                     />
-                    <Text style={styles.locationText}>{booking.location}</Text>
+                    <Text style={styles.detailText}>{booking.dateLabel}</Text>
                   </View>
                 </View>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    { backgroundColor: statusStyle.bg, borderColor: statusStyle.border },
-                  ]}
-                >
-                  <Text style={[styles.statusText, { color: statusStyle.text }]}>
-                    {booking.status}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.detailRow}>
                 <View style={styles.detailItem}>
-                  <Image source={icons.clock} style={styles.metaIcon} resizeMode="contain" />
-                  <Text style={styles.detailText}>{booking.time}</Text>
+                  <Image source={icons.money} style={styles.metaIcon} resizeMode="contain" />
+                  <Text style={styles.detailText}>£{booking.totalPrice}</Text>
                 </View>
-                <View style={styles.detailItem}>
-                  <Image
-                    source={icons.calendar}
-                    style={styles.metaIcon}
-                    resizeMode="contain"
-                  />
-                  <Text style={styles.detailText}>{booking.date}</Text>
-                </View>
-              </View>
-              <View style={styles.detailItem}>
-                <Image source={icons.money} style={styles.metaIcon} resizeMode="contain" />
-                <Text style={styles.detailText}>{booking.price}</Text>
-              </View>
 
-              {booking.status !== 'Cancelled' && (
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  style={styles.cancelButton}
-                  onPress={() => cancelBooking(booking.id)}
-                >
-                  <Text style={styles.cancelButtonText}>Cancel Booking</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          );
-        })}
-      </ScrollView>
+                {booking.status !== 'Cancelled' && (
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    style={styles.cancelButton}
+                    onPress={() => handleCancelBooking(booking.id)}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancel Booking</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            );
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 };
@@ -216,6 +240,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: wp(20),
     paddingTop: hp(16),
     paddingBottom: hp(20),
+  },
+  centerContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  listLoader: {
+    marginTop: hp(20),
+  },
+  emptyText: {
+    color: colors.subText,
+    fontSize: fontSize(14),
+    fontFamily: fonts.Lato500,
   },
   card: {
     padding: wp(16),

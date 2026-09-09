@@ -22,6 +22,7 @@ import { headerShadow } from '../utils/shadows';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp } from '../helpers/responsive';
 import { BookPlaceScreenProps } from '../interface/screenTypes';
+import { BookingDraft } from '../interface/common';
 import { supabase } from '../api/supabaseClient';
 import { MySpace, fetchPlaceById } from '../api/places';
 
@@ -281,34 +282,29 @@ const BookPlaceScreen = ({ navigation, route }: BookPlaceScreenProps) => {
 
     setSubmitting(true);
     const { data: authData } = await supabase.auth.getUser();
+    setSubmitting(false);
     if (!authData.user) {
-      setSubmitting(false);
       ToastAlert({ title: 'Please sign in', description: 'You need to be signed in to book a space.' });
       return;
     }
 
-    const { data, error } = await supabase
-      .from('book_space')
-      .insert({
-        place_id: space.id,
-        renter_id: authData.user.id,
-        booking_type: MODE_LABEL[mode],
-        start_date_time: startDateTime.toISOString(),
-        end_date_time: endDateTime.toISOString(),
-        quantity,
-        rate,
-        total_price: total,
-      })
-      .select('id')
-      .single();
+    // No book_space row is created here anymore — it's only inserted by the
+    // create-booking-payment Edge Function after a real Stripe charge
+    // succeeds, so nothing is persisted until payment goes through.
+    const draft: BookingDraft = {
+      placeId: space.id,
+      placeTitle: space.title,
+      placeLocation: space.location,
+      placeImage: space.image,
+      bookingType: MODE_LABEL[mode],
+      startDateTime: startDateTime.toISOString(),
+      endDateTime: endDateTime.toISOString(),
+      quantity,
+      rate,
+      totalPrice: total,
+    };
 
-    setSubmitting(false);
-    if (error || !data) {
-      ToastAlert({ title: 'Could not create booking', description: error?.message ?? 'Please try again.' });
-      return;
-    }
-
-    navigation.navigate('RentAgreementScreen', { bookingId: data.id });
+    navigation.navigate('RentAgreementScreen', { draft });
   };
 
   if (loading) {

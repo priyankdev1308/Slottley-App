@@ -9,26 +9,37 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { STRIPE_PUBLISHABLE_KEY } from '@env';
 
 import CustomButton from '../components/CustomButton';
 import ToastAlert from '../components/ToastAlert';
-import { MastercardIcon, CloseIcon } from '../components/icons/CardIcons';
+import {
+  CloseIcon,
+  getCardBrandIcon,
+  detectCardBrand,
+  formatCardNumber,
+  formatExpiryInput,
+} from '../components/icons/CardIcons';
 import { colors } from '../utils/colors';
 import { fonts } from '../utils/fonts';
 import { fontSize, hp, wp, isIos } from '../helpers/responsive';
 import { AddNewCardScreenProps } from '../interface/screenTypes';
-import { SavedCard } from '../interface/common';
+import { supabase } from '../api/supabaseClient';
 
-const formatCardNumber = (raw: string) => {
-  const digits = raw.replace(/\D/g, '').slice(0, 16);
-  return digits.replace(/(.{4})/g, '$1 ').trim();
-};
-
-const detectBrand = (digits: string): SavedCard['brand'] | null => {
-  if (!digits) return null;
-  if (digits.startsWith('4')) return 'visa';
-  if (/^5[1-5]/.test(digits)) return 'mastercard';
-  return null;
+// Luhn checksum — catches obvious typos before we ever contact Stripe.
+const isValidLuhn = (digits: string) => {
+  let sum = 0;
+  let alternate = false;
+  for (let i = digits.length - 1; i >= 0; i--) {
+    let n = parseInt(digits[i], 10);
+    if (alternate) {
+      n *= 2;
+      if (n > 9) n -= 9;
+    }
+    sum += n;
+    alternate = !alternate;
+  }
+  return sum % 10 === 0;
 };
 
 const AddNewCardScreen = ({ navigation, route }: AddNewCardScreenProps) => {
@@ -36,35 +47,93 @@ const AddNewCardScreen = ({ navigation, route }: AddNewCardScreenProps) => {
   const [expiryDate, setExpiryDate] = useState('');
   const [cvv, setCvv] = useState('');
   const [cardHolderName, setCardHolderName] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const digits = cardNumber.replace(/\D/g, '');
-  const brand = detectBrand(digits);
+  const brand = detectCardBrand(digits);
 
   const handleClose = () => navigation.goBack();
 
-  const handleAdd = () => {
-    if (digits.length < 16) {
-      ToastAlert({ title: 'Invalid card number', description: 'Enter all 16 digits.' });
+  // The raw card number/expiry/CVC go straight to Stripe's own API from
+  // here, using the PUBLISHABLE key — they never pass through our own
+  // server. Only the resulting token (paymentMethod.id) is sent to the
+  // add-card Edge Function, which attaches it with the SECRET key.
+  const handleAdd = async () => {
+    const expectedLength = brand === 'amex' ? 15 : 16;
+    if (digits.length !== expectedLength || !isValidLuhn(digits)) {
+      ToastAlert({ title: 'Invalid card number', description: 'Please enter a valid card number.' });
       return;
     }
-    if (!/^\d{2}\/\d{2}$/.test(expiryDate)) {
+
+    const expiryMatch = /^(\d{2})\/(\d{2})$/.exec(expiryDate);
+    if (!expiryMatch) {
       ToastAlert({ title: 'Invalid expiry date', description: 'Use the format MM/YY.' });
       return;
     }
-    if (cvv.length < 3) {
+    const expMonth = parseInt(expiryMatch[1], 10);
+    const expYear = 2000 + parseInt(expiryMatch[2], 10);
+    const now = new Date();
+    const isPast =
+      expMonth < 1 || expMonth > 12 ||
+      expYear < now.getFullYear() ||
+      (expYear === now.getFullYear() && expMonth < now.getMonth() + 1);
+    if (isPast) {
+      ToastAlert({ title: 'Invalid expiry date', description: 'This card has expired.' });
+      return;
+    }
+
+    const expectedCvvLength = brand === 'amex' ? 4 : 3;
+    if (cvv.length !== expectedCvvLength) {
       ToastAlert({ title: 'Invalid CVV', description: 'Enter a valid CVV.' });
       return;
     }
+
     if (!cardHolderName.trim()) {
       ToastAlert({ title: 'Card holder name required', description: 'Please enter the name on the card.' });
       return;
     }
 
+    setSubmitting(true);
+
+    const stripeResponse = await fetch('https://api.stripe.com/v1/payment_methods', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Authorization: `Bearer ${STRIPE_PUBLISHABLE_KEY ?? ''}`,
+      },
+      body: new URLSearchParams({
+        type: 'card',
+        'card[number]': digits,
+        'card[exp_month]': String(expMonth),
+        'card[exp_year]': String(expYear),
+        'card[cvc]': cvv,
+        'billing_details[name]': cardHolderName.trim(),
+      }).toString(),
+    });
+    const stripeResult = await stripeResponse.json();
+
+    if (!stripeResponse.ok) {
+      setSubmitting(false);
+      ToastAlert({ title: 'Could not process card', description: stripeResult.error?.message ?? 'Please try again.' });
+      return;
+    }
+
+    const { data, error: fnError } = await supabase.functions.invoke('add-card', {
+      body: { paymentMethodId: stripeResult.id },
+    });
+    setSubmitting(false);
+
+    if (fnError || !data) {
+      ToastAlert({ title: 'Could not save card', description: fnError?.message ?? 'Please try again.' });
+      return;
+    }
+
     route.params.onAdd({
-      id: Date.now().toString(),
-      brand: brand ?? 'visa',
-      first4: digits.slice(0, 4),
-      last4: digits.slice(-4),
+      id: data.id,
+      brand: data.brand,
+      last4: data.last4,
+      expMonth: data.expMonth,
+      expYear: data.expYear,
     });
     navigation.goBack();
   };
@@ -93,14 +162,13 @@ const AddNewCardScreen = ({ navigation, route }: AddNewCardScreenProps) => {
             <View style={styles.inputRow}>
               <TextInput
                 value={cardNumber}
-                onChangeText={text => setCardNumber(formatCardNumber(text))}
+                onChangeText={text => setCardNumber(formatCardNumber(text, detectCardBrand(text.replace(/\D/g, ''))))}
                 placeholder="XXXX XXXX XXXX XXXX"
                 placeholderTextColor={colors.placeHolder}
                 keyboardType="number-pad"
                 style={styles.input}
               />
-              {brand === 'mastercard' && <MastercardIcon size={26} />}
-              {brand === 'visa' && <Text style={styles.visaText}>VISA</Text>}
+              {brand && getCardBrandIcon(brand, 30)}
             </View>
 
             <View style={styles.row}>
@@ -109,7 +177,7 @@ const AddNewCardScreen = ({ navigation, route }: AddNewCardScreenProps) => {
                 <View style={styles.inputRow}>
                   <TextInput
                     value={expiryDate}
-                    onChangeText={setExpiryDate}
+                    onChangeText={text => setExpiryDate(formatExpiryInput(text))}
                     placeholder="MM/YY"
                     placeholderTextColor={colors.placeHolder}
                     keyboardType="number-pad"
@@ -147,7 +215,13 @@ const AddNewCardScreen = ({ navigation, route }: AddNewCardScreenProps) => {
               />
             </View>
 
-            <CustomButton title="Add" onPress={handleAdd} buttonStyle={styles.addButton} />
+            <CustomButton
+              title="Add"
+              onPress={handleAdd}
+              loader={submitting}
+              disable={submitting}
+              buttonStyle={styles.addButton}
+            />
           </View>
         </SafeAreaView>
       </KeyboardAvoidingView>
@@ -228,12 +302,6 @@ const styles = StyleSheet.create({
     color: colors.black,
     fontSize: fontSize(14),
     fontFamily: fonts.Lato500,
-  },
-  visaText: {
-    color: '#1A1F71',
-    fontSize: fontSize(13),
-    fontStyle: 'italic',
-    fontFamily: fonts.Lato700,
   },
   row: {
     flexDirection: 'row',
