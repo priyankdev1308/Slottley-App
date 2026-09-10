@@ -38,6 +38,7 @@ const PaymentScreen = ({ navigation, route }: PaymentScreenProps) => {
   const [cards, setCards] = useState<PaymentCard[]>([]);
   const [cardsLoading, setCardsLoading] = useState(true);
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
+  const [walletBalance, setWalletBalance] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,6 +62,23 @@ const PaymentScreen = ({ navigation, route }: PaymentScreenProps) => {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) return;
+      const { data } = await supabase
+        .from('users')
+        .select('wallet_balance')
+        .eq('id', authData.user.id)
+        .single();
+      if (!cancelled) setWalletBalance(Math.max(data?.wallet_balance ?? 0, 0));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const handleAddCard = (card: SavedCard) => {
     const newCard: PaymentCard = {
       id: card.id,
@@ -71,8 +89,17 @@ const PaymentScreen = ({ navigation, route }: PaymentScreenProps) => {
     setSelectedCard(newCard.id);
   };
 
+  // Platform commission still has no business rule defined, so it stays at
+  // £0 rather than fabricating a number. Referral credit is the renter's
+  // real wallet_balance, capped so it can never discount below £0 — the
+  // Edge Function independently re-derives and re-spends this same amount
+  // server-side, so this is purely for display/UI purposes here.
+  const commission = 0;
+  const referralCredit = Math.min(walletBalance, draft.totalPrice);
+  const grandTotal = draft.totalPrice + commission - referralCredit;
+
   const handlePay = async () => {
-    if (!selectedCard) {
+    if (grandTotal > 0 && !selectedCard) {
       ToastAlert({ title: 'Select a card', description: 'Choose a saved card to pay with.' });
       return;
     }
@@ -108,12 +135,6 @@ const PaymentScreen = ({ navigation, route }: PaymentScreenProps) => {
     navigation.navigate('BookingConfirmationScreen', { bookingId: data.bookingId });
   };
 
-  // Platform commission and referral credit aren't wired up yet — no
-  // business rule for either has been specified, so both stay at £0 rather
-  // than fabricating a number. Grand Total is just the place price for now.
-  const commission = 0;
-  const referralCredit = 0;
-  const grandTotal = draft.totalPrice + commission - referralCredit;
   const { timeLabel, dateLabel } = buildBookingLabels(
     draft.bookingType,
     draft.startDateTime,
@@ -175,7 +196,7 @@ const PaymentScreen = ({ navigation, route }: PaymentScreenProps) => {
           <Text style={styles.summaryTitle}>Summary</Text>
           {[
             { label: 'Place Price', value: `£${draft.totalPrice}` },
-            { label: 'Platform Commission', value: `£${commission}` },
+            // { label: 'Platform Commission', value: `£${commission}` },
             { label: 'Referral & Earn Credit', value: referralCredit ? `- £${referralCredit}` : `£${referralCredit}` },
           ].map(row => (
             <View key={row.label} style={styles.summaryRow}>
@@ -236,7 +257,7 @@ const PaymentScreen = ({ navigation, route }: PaymentScreenProps) => {
 
       <View style={styles.footer}>
         <CustomButton
-          title={`Pay £${grandTotal}`}
+          title={grandTotal > 0 ? `Pay £${grandTotal}` : 'Confirm Booking'}
           onPress={handlePay}
           loader={paying}
           disable={paying}

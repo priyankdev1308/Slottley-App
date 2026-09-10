@@ -1,4 +1,5 @@
 import { ImageSourcePropType } from 'react-native';
+import { FunctionsHttpError } from '@supabase/supabase-js';
 
 import { PLACES_SELECT, PlaceRow, mapPlaceRow } from './places';
 import { supabase } from './supabaseClient';
@@ -154,7 +155,23 @@ export const fetchMyBookingsPage = async (
   return { rows, more: data.length === pageSize };
 };
 
-export const cancelBooking = async (id: string): Promise<boolean> => {
-  const { error } = await supabase.from('book_space').update({ status: 'Cancelled' }).eq('id', id);
-  return !error;
+// Cancels a booking via the cancel-booking Edge Function, which also
+// issues a full Stripe refund (and gives back any referral credit spent)
+// before flipping the row to Cancelled — a plain client-side status
+// update would skip the refund entirely, so this always goes through the
+// function rather than updating book_space directly.
+export const cancelBooking = async (id: string): Promise<{ ok: boolean; error?: string }> => {
+  const { error } = await supabase.functions.invoke('cancel-booking', { body: { bookingId: id } });
+  if (!error) return { ok: true };
+
+  let message = 'Please try again.';
+  if (error instanceof FunctionsHttpError) {
+    try {
+      const body = await error.context.json();
+      message = body?.error ?? message;
+    } catch {
+      // response body wasn't JSON — fall back to the generic message
+    }
+  }
+  return { ok: false, error: message };
 };

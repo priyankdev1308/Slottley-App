@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Image,
+  Platform,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -10,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 
 import { icons } from "../../assets/icons";
 import { fontSize, hp, wp } from "../helpers/responsive";
@@ -18,8 +20,9 @@ import { colors } from "../utils/colors";
 import { headerShadow } from "../utils/shadows";
 import { fonts } from "../utils/fonts";
 import CustomButton from "../components/CustomButton";
-
-type PlanId = "solo" | "enhance" | "pro";
+import ToastAlert from "../components/ToastAlert";
+import { supabase } from "../api/supabaseClient";
+import { SUBSCRIPTION_PRODUCT_IDS, PaidPlanId, PlanId, resolvePlanId } from "../config/subscriptionProducts";
 
 // Each plan's feature lines run to a different length, so the block is
 // given a matching width to keep it visually tight instead of a fixed
@@ -85,13 +88,71 @@ const PLANS: Plan[] = [
 
 const SubscriptionScreen = ({ navigation }: SubscriptionScreenProps) => {
   const [selectedPlanId, setSelectedPlanId] = useState<PlanId>("solo");
+  const [activePlanId, setActivePlanId] = useState<PlanId>("solo");
+  const [subscribing, setSubscribing] = useState(false);
   const selectedPlan =
     PLANS.find((plan) => plan.id === selectedPlanId) ?? PLANS[0];
 
+  useEffect(() => {
+    (async () => {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) return;
+
+      const { data } = await supabase
+        .from("users")
+        .select("subscription_product, is_subscription_activated")
+        .eq("id", authData.user.id)
+        .single();
+
+      const planId = resolvePlanId(data?.subscription_product, data?.is_subscription_activated);
+      if (planId !== "solo") {
+        setActivePlanId(planId);
+        setSelectedPlanId(planId);
+      }
+    })();
+  }, []);
+
   const subscribe = () => {
+    if (selectedPlanId === "solo" || selectedPlanId === activePlanId) {
+      navigation.goBack();
+      return;
+    }
+
+    const planId = selectedPlanId as PaidPlanId;
     Alert.alert(
-      "Subscription selected",
-      `${selectedPlan.title} has been selected for your subscription.`
+      "Confirm test purchase",
+      `Simulate purchasing ${selectedPlan.title} at ${selectedPlan.price}/monthly?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Purchase",
+          onPress: async () => {
+            setSubscribing(true);
+            const { error } = await supabase.functions.invoke("activate-subscription", {
+              body: { productId: SUBSCRIPTION_PRODUCT_IDS[planId], platform: Platform.OS },
+            });
+            setSubscribing(false);
+
+            if (error) {
+              let description = "Please try again.";
+              if (error instanceof FunctionsHttpError) {
+                try {
+                  const body = await error.context.json();
+                  description = body?.error ?? description;
+                } catch {
+                  // response body wasn't JSON — fall back to the generic message
+                }
+              }
+              ToastAlert({ title: "Subscription failed", description });
+              return;
+            }
+
+            setActivePlanId(planId);
+            ToastAlert({ title: "Subscribed", description: `You're now on the ${selectedPlan.title} plan.` });
+            navigation.goBack();
+          },
+        },
+      ]
     );
   };
 
@@ -185,8 +246,10 @@ const SubscriptionScreen = ({ navigation }: SubscriptionScreenProps) => {
 
         <View style={styles.footer}>
           <CustomButton
-            title='Subscribe'
-            onPress={() => navigation.goBack()}
+            title={selectedPlanId === activePlanId ? "Current Plan" : "Subscribe"}
+            onPress={subscribe}
+            loader={subscribing}
+            disable={subscribing || selectedPlanId === activePlanId}
           />
         </View>
 

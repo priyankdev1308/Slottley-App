@@ -41,6 +41,7 @@ const BookingScreen = (_props: MainTabScreenProps<'Booking'>) => {
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -87,16 +88,19 @@ const BookingScreen = (_props: MainTabScreenProps<'Booking'>) => {
   const handleCancelBooking = (id: string) => {
     Alert.alert(
       'Cancel Booking',
-      'Are you sure you want to cancel this booking? This action cannot be undone.',
+      'Are you sure you want to cancel this booking? You will be fully refunded.',
       [
         { text: 'No', style: 'cancel' },
         {
           text: 'Yes, Cancel',
           style: 'destructive',
           onPress: async () => {
-            const ok = await cancelBooking(id);
-            if (!ok) {
-              ToastAlert({ title: 'Could not cancel booking', description: 'Please try again.' });
+            setCancellingId(id);
+            const result = await cancelBooking(id);
+            setCancellingId(null);
+
+            if (!result.ok) {
+              ToastAlert({ title: 'Could not cancel booking', description: result.error ?? 'Please try again.' });
               return;
             }
             setBookings(prev =>
@@ -157,7 +161,7 @@ const BookingScreen = (_props: MainTabScreenProps<'Booking'>) => {
                         resizeMode="contain"
                       />
                       <Text style={styles.locationText}>{booking.placeLocation}</Text>
-                    </View>
+                    </View>1
                   </View>
                   <View
                     style={[
@@ -194,9 +198,14 @@ const BookingScreen = (_props: MainTabScreenProps<'Booking'>) => {
                   <TouchableOpacity
                     activeOpacity={0.85}
                     style={styles.cancelButton}
+                    disabled={cancellingId === booking.id}
                     onPress={() => handleCancelBooking(booking.id)}
                   >
-                    <Text style={styles.cancelButtonText}>Cancel Booking</Text>
+                    {cancellingId === booking.id ? (
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                      <Text style={styles.cancelButtonText}>Cancel Booking</Text>
+                    )}
                   </TouchableOpacity>
                 )}
               </View>

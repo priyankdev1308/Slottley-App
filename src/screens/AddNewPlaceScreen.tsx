@@ -30,23 +30,17 @@ import { supabase } from '../api/supabaseClient';
 import { EditablePlaceImage, fetchPlaceForEdit } from '../api/places';
 import { PLACE_CATEGORIES, PlaceCategory } from '../utils/placeCategories';
 import { AddNewPlaceScreenProps } from '../interface/screenTypes';
+import { PLAN_PHOTO_LIMITS, resolvePlanId } from '../config/subscriptionProducts';
 
 const PLACE_IMAGE_BUCKET = 'place_images';
 
-// UI photo-slot keys vs. the `place_images.slot` check-constraint values.
-const SLOT_TO_DB: Record<string, string> = {
-  reception: 'reception',
-  work: 'work',
-  backwash: 'backwash',
-  more: 'extra',
-};
+const PLAN_LABELS: Record<string, string> = { solo: 'Solo', enhance: 'Enhance', pro: 'Pro' };
 
-const DB_SLOT_TO_UI: Record<string, string> = {
-  reception: 'reception',
-  work: 'work',
-  backwash: 'backwash',
-  extra: 'more',
-};
+// UI photo-slot keys vs. the `place_images.slot` check-constraint values.
+// Only 3 named slots exist in the DB — every other slot (any `more-N` key,
+// however many the current plan allows) is just 'extra'.
+const NAMED_SLOT_KEYS = ['reception', 'work', 'backwash'];
+const slotKeyToDbSlot = (key: string): string => (NAMED_SLOT_KEYS.includes(key) ? key : 'extra');
 
 const toISODate = (ddmmyyyy: string): string | null => {
   const match = ddmmyyyy.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
@@ -94,11 +88,18 @@ interface PhotoSlot {
   caption: string;
 }
 
-const PHOTO_SLOTS: PhotoSlot[] = [
+// Named slots are always the same 3; everything past that is a generic
+// "extra" slot, however many the Host's plan allows (extraSlotCount here is
+// already the plan's allowance, defensively extended to cover any existing
+// extra photos beyond it — see where this is called).
+const buildPhotoSlots = (extraSlotCount: number): PhotoSlot[] => [
   { key: 'reception', caption: 'Add Reception Area' },
   { key: 'work', caption: 'Add Work Area' },
   { key: 'backwash', caption: 'Add Backwash Area' },
-  { key: 'more', caption: 'Add More Image' },
+  ...Array.from({ length: extraSlotCount }, (_, i) => ({
+    key: `more-${i}`,
+    caption: 'Add More Image',
+  })),
 ];
 
 // Pairs up the narrow cards two-per-row and keeps full-width cards on their own row.
@@ -239,6 +240,32 @@ const AddNewPlaceScreen = ({ navigation, route }: AddNewPlaceScreenProps) => {
   const [longitude, setLongitude] = useState<number | null>(null);
   const [photos, setPhotos] = useState<Partial<Record<string, Asset>>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [photoLimit, setPhotoLimit] = useState(PLAN_PHOTO_LIMITS.solo);
+  const [planId, setPlanId] = useState<keyof typeof PLAN_LABELS>('solo');
+
+  useEffect(() => {
+    (async () => {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) return;
+
+      const { data } = await supabase
+        .from('users')
+        .select('subscription_product, is_subscription_activated')
+        .eq('id', authData.user.id)
+        .single();
+
+      const resolvedPlanId = resolvePlanId(data?.subscription_product, data?.is_subscription_activated);
+      setPlanId(resolvedPlanId);
+      setPhotoLimit(PLAN_PHOTO_LIMITS[resolvedPlanId]);
+    })();
+  }, []);
+
+  // Every existing photo needs a slot to render in, even if the Host's
+  // plan has since been downgraded below what an older place was saved
+  // with — so the rendered slot count is never lower than what's already
+  // there, only the Host's remaining *new* additions are capped by plan.
+  const existingExtraCount = Object.keys(existingImages).filter(key => key.startsWith('more-')).length;
+  const photoSlots = buildPhotoSlots(Math.max(photoLimit - 3, existingExtraCount, 0));
 
   useEffect(() => {
     if (!placeId) return;
@@ -284,9 +311,13 @@ const AddNewPlaceScreen = ({ navigation, route }: AddNewPlaceScreenProps) => {
       setInstantBooking(place.instantBooking);
       setAgreeTerms(true);
 
+      // place.images is already sorted by sort_order — every 'extra' row
+      // gets its own more-0/more-1/... key here instead of colliding into
+      // a single slot, so multiple extra photos all show up when editing.
       const imagesBySlot: Partial<Record<string, EditablePlaceImage>> = {};
+      let nextExtraIndex = 0;
       place.images.forEach(image => {
-        const uiSlot = DB_SLOT_TO_UI[image.slot] ?? 'more';
+        const uiSlot = NAMED_SLOT_KEYS.includes(image.slot) ? image.slot : `more-${nextExtraIndex++}`;
         imagesBySlot[uiSlot] = image;
       });
       setExistingImages(imagesBySlot);
@@ -374,12 +405,12 @@ const AddNewPlaceScreen = ({ navigation, route }: AddNewPlaceScreenProps) => {
     }
 
     // Fills the tapped slot first, then any other still-empty slots in
-    // order, so picking several photos at once (up to 4 total) spreads
-    // across the remaining boxes instead of only filling the one tapped.
-    // Slots holding an already-uploaded image are excluded — those must be
-    // removed first before a new photo can go in.
-    const startIndex = PHOTO_SLOTS.findIndex(slot => slot.key === slotKey);
-    const fillOrder = [...PHOTO_SLOTS.slice(startIndex), ...PHOTO_SLOTS.slice(0, startIndex)]
+    // order (up to the Host's plan limit), so picking several photos at
+    // once spreads across the remaining boxes instead of only filling the
+    // one tapped. Slots holding an already-uploaded image are excluded —
+    // those must be removed first before a new photo can go in.
+    const startIndex = photoSlots.findIndex(slot => slot.key === slotKey);
+    const fillOrder = [...photoSlots.slice(startIndex), ...photoSlots.slice(0, startIndex)]
       .map(slot => slot.key)
       .filter(key => !photos[key] && !existingImages[key]);
 
@@ -409,7 +440,7 @@ const AddNewPlaceScreen = ({ navigation, route }: AddNewPlaceScreenProps) => {
   };
 
   const handleAddPhoto = (slotKey: string) => {
-    const emptySlotCount = PHOTO_SLOTS.filter(
+    const emptySlotCount = photoSlots.filter(
       slot => !photos[slot.key] && !existingImages[slot.key],
     ).length;
     Alert.alert('Upload Photo', undefined, [
@@ -504,7 +535,7 @@ const AddNewPlaceScreen = ({ navigation, route }: AddNewPlaceScreenProps) => {
       asset.fileName?.split('.').pop()?.toLowerCase() ||
       asset.uri.split('.').pop()?.toLowerCase() ||
       'jpg';
-    const dbSlot = SLOT_TO_DB[slotKey] ?? 'extra';
+    const dbSlot = slotKeyToDbSlot(slotKey);
     const path = `${hostId}/${placeId}/${dbSlot}-${Date.now()}.${ext}`;
 
     const { error: uploadError } = await supabase.storage
@@ -654,7 +685,7 @@ const AddNewPlaceScreen = ({ navigation, route }: AddNewPlaceScreenProps) => {
       const [slotKey, asset] = photoEntries[i];
       const path = await uploadPlacePhoto(hostId, targetPlaceId as string, slotKey, asset);
       if (path) {
-        imageRows.push({ place_id: targetPlaceId as string, slot: SLOT_TO_DB[slotKey] ?? 'extra', path, sort_order: i });
+        imageRows.push({ place_id: targetPlaceId as string, slot: slotKeyToDbSlot(slotKey), path, sort_order: i });
       }
     }
 
@@ -718,7 +749,7 @@ const AddNewPlaceScreen = ({ navigation, route }: AddNewPlaceScreenProps) => {
       >
         <Text style={styles.sectionLabel}>Photos</Text>
         <View style={styles.photoGrid}>
-          {PHOTO_SLOTS.map(slot => {
+          {photoSlots.map(slot => {
             const asset = photos[slot.key];
             const existingImage = existingImages[slot.key];
             const previewUri = asset?.uri ?? existingImage?.url;
@@ -767,6 +798,12 @@ const AddNewPlaceScreen = ({ navigation, route }: AddNewPlaceScreenProps) => {
             );
           })}
         </View>
+        {photoSlots.every(slot => photos[slot.key] || existingImages[slot.key]) && (
+          <Text style={styles.photoLimitText}>
+            You've reached your {PLAN_LABELS[planId]} plan's limit of {photoLimit} photos. Upgrade your
+            plan to add more.
+          </Text>
+        )}
 
         <Text style={styles.sectionLabel}>Types Of Space</Text>
         <View style={styles.categoryGrid}>
@@ -1302,6 +1339,12 @@ const styles = StyleSheet.create({
     fontSize: fontSize(12),
     fontFamily: fonts.Lato400Italic,
     fontStyle: 'italic',
+  },
+  photoLimitText: {
+    marginTop: hp(10),
+    color: colors.primary,
+    fontSize: fontSize(12.5),
+    fontFamily: fonts.Lato500,
   },
   categoryGrid: {
     gap: wp(10),
