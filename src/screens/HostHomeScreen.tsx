@@ -3,6 +3,7 @@ import {
   View,
   Text,
   Image,
+  Alert,
   StyleSheet,
   StatusBar,
   FlatList,
@@ -42,6 +43,7 @@ const HostHomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
   const avatarUrl = useProfileAvatarUrl();
 
   const [hostId, setHostId] = useState<string | null>(null);
+  const [stripeConnectId, setStripeConnectId] = useState<string | null>(null);
   const [totalPlaces, setTotalPlaces] = useState(0);
   const [spaces, setSpaces] = useState<MySpace[]>([]);
   const [page, setPage] = useState(0);
@@ -66,8 +68,14 @@ const HostHomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
       if (cancelled) return;
       setHostId(userId);
 
-      const count = await fetchHostPlacesCount(userId);
-      if (!cancelled) setTotalPlaces(count);
+      const [count, { data: profile }] = await Promise.all([
+        fetchHostPlacesCount(userId),
+        supabase.from('users').select('stripe_connect_id').eq('id', userId).single(),
+      ]);
+      if (!cancelled) {
+        setTotalPlaces(count);
+        setStripeConnectId(profile?.stripe_connect_id ?? null);
+      }
     })();
 
     return () => {
@@ -116,13 +124,15 @@ const HostHomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
   const refreshData = async () => {
     if (!hostId) return;
 
-    const [count, pageResult] = await Promise.all([
+    const [count, pageResult, { data: profile }] = await Promise.all([
       fetchHostPlacesCount(hostId),
       fetchHostPlacesPage(hostId, 0, SPACES_PAGE_SIZE, debouncedSearch),
+      supabase.from('users').select('stripe_connect_id').eq('id', hostId).single(),
     ]);
     setTotalPlaces(count);
     setSpaces(pageResult.rows);
     setHasMore(pageResult.more);
+    setStripeConnectId(profile?.stripe_connect_id ?? null);
     setPage(0);
   };
 
@@ -157,6 +167,17 @@ const HostHomeScreen = ({ navigation }: MainTabScreenProps<'Explore'>) => {
   ];
 
   const handleAddSpace = () => {
+    if (!stripeConnectId) {
+      Alert.alert(
+        'Bank account required',
+        "You need to set up your bank account via Stripe first, since you're paid directly to your bank account for bookings. Please connect your bank account to continue.",
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Connect Bank Account', onPress: () => navigation.navigate('BankAccountScreen') },
+        ],
+      );
+      return;
+    }
     navigation.navigate('AddNewPlaceScreen');
   };
 

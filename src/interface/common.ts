@@ -75,6 +75,7 @@ export type RootStackParamList = {
   MyJobApplicationsScreen: undefined;
   GetVerifiedScreen: undefined;
   ReferEarnScreen: undefined;
+  BankAccountScreen: undefined;
   MyCardsScreen: undefined;
   AddNewCardScreen: { onAdd: (card: SavedCard) => void };
   NotificationScreen: undefined;

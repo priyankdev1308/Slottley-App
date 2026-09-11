@@ -36,6 +36,7 @@ import WishlistScreen from "../screens/WishlistScreen";
 import MyJobApplicationsScreen from "../screens/MyJobApplicationsScreen";
 import GetVerifiedScreen from "../screens/GetVerifiedScreen";
 import ReferEarnScreen from "../screens/ReferEarnScreen";
+import BankAccountScreen from "../screens/BankAccountScreen";
 import MyCardsScreen from "../screens/MyCardsScreen";
 import AddNewCardScreen from "../screens/AddNewCardScreen";
 import NotificationScreen from "../screens/NotificationScreen";
@@ -221,6 +222,7 @@ const StackNav = () => {
         />
         <Stack.Screen name="GetVerifiedScreen" component={GetVerifiedScreen} />
         <Stack.Screen name="ReferEarnScreen" component={ReferEarnScreen} />
+        <Stack.Screen name="BankAccountScreen" component={BankAccountScreen} />
         <Stack.Screen name="MyCardsScreen" component={MyCardsScreen} />
         <Stack.Screen
           name="AddNewCardScreen"

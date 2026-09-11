@@ -78,7 +78,7 @@ const PLANS: Plan[] = [
     price: "£39.99",
     features: [
       "Unlimited listings",
-      "Unlimited photos per listing",
+      "Up to 15 photos per listing",
       "Top search placement + featured badge",
       "Dynamic pricing suggestions",
       "7% commission",

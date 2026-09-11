@@ -29,5 +29,5 @@ export const resolvePlanId = (
 export const PLAN_PHOTO_LIMITS: Record<PlanId, number> = {
   solo: 4,
   enhance: 10,
-  pro: 25,
+  pro: 15,
 };

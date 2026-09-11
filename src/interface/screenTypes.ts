@@ -152,6 +152,11 @@ export type ReferEarnScreenProps = NativeStackScreenProps<
   "ReferEarnScreen"
 >;
 
+export type BankAccountScreenProps = NativeStackScreenProps<
+  RootStackParamList,
+  "BankAccountScreen"
+>;
+
 export type MyCardsScreenProps = NativeStackScreenProps<
   RootStackParamList,
   "MyCardsScreen"

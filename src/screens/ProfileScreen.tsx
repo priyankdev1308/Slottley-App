@@ -124,6 +124,8 @@ const ProfileScreen = ({ navigation }: MainTabScreenProps<'Profile'>) => {
       navigation.navigate('MyJobApplicationsScreen');
     } else if (key === 'cards') {
       navigation.navigate('MyCardsScreen');
+    } else if (key === 'bank') {
+      navigation.navigate('BankAccountScreen');
     } else if (key === 'verified') {
       navigation.navigate('GetVerifiedScreen');
     } else if (key === 'refer') {
